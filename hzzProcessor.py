@@ -104,89 +104,112 @@ class HZZProcessor(processor.ProcessorABC):
         # DoubleMuon
         if self._year=='2016':
             triggerPaths['DoubleMuon'] = [
+                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ",
+                "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ",
+                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL",
+                "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL",
+                "HLT_TripleMu_12_10_5",
             ]
         elif self._year=='2017':
             triggerPaths['DoubleMuon'] = [
-                'HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
-                'HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8',
-                'HLT_TripleMu_10_5_5_DZ',
-                'HLT_TripleMu_12_10_5',
-                'HLT_DiMu9_Ele9_CaloIdL_TrackIdL_DZ',
+                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
+                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8",
+                "HLT_TripleMu_10_5_5_DZ",
+                "HLT_TripleMu_12_10_5",
             ]
         elif self._year=='2018':
             triggerPaths['DoubleMuon'] = [
-                'HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8',
-                'HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8',
-                'HLT_TripleMu_10_5_5_DZ',
-                'HLT_TripleMu_12_10_5',
-                'HLT_DiMu9_Ele9_CaloIdL_TrackIdL_DZ',
+                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
+                "HLT_TripleMu_10_5_5_DZ",
+                "HLT_TripleMu_12_10_5",
             ]
 
         # DoubleEG
         if self._year=='2016':
             triggerPaths['DoubleEG'] = [
+                "HLT_Ele17_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_DoubleEle33_CaloIdL_GsfTrkIdVL",
+                "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
             ]
 
         # MuonEG
         if self._year=='2016':
             triggerPaths['MuonEG'] = [
+                "HLT_Mu8_TrkIsoVVL_Ele17_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_Mu17_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_Mu23_TrkIsoVVL_Ele8_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu8_DiEle12_CaloIdL_TrackIdL",
+                "HLT_DiMu9_Ele9_CaloIdL_TrackIdL",
             ]
         elif self._year=='2017':
             triggerPaths['MuonEG'] = [
-                'HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'HLT_Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
+                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_DiMu9_Ele9_CaloIdL_TrackIdL_DZ",
+                "HLT_Mu8_DiEle12_CaloIdL_TrackIdL",
+                "HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ",
             ]
         elif self._year=='2018':
             triggerPaths['MuonEG'] = [
-                'HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'HLT_Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ',
-                'HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ',
+                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_Mu12_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
+                "HLT_DiMu9_Ele9_CaloIdL_TrackIdL_DZ",
+                "HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ",
             ]
 
         # EGamma
         if self._year=='2017':
             triggerPaths['EGamma'] = [
-                'HLT_Ele35_WPTight_Gsf',
-                'HLT_Ele38_WPTight_Gsf',
-                'HLT_Ele40_WPTight_Gsf',
-                'HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'HLT_DoubleEle33_CaloIdL_MW',
-                'HLT_Mu8_DiEle12_CaloIdL_TrackIdL',
-                'HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ',
+                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_DoubleEle33_CaloIdL_MW",
+                "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
+                "HLT_Ele35_WPTight_Gsf",
+                "HLT_Ele38_WPTight_Gsf",
+                "HLT_Ele40_WPTight_Gsf",
             ]
         elif self._year=='2018':
             triggerPaths['EGamma'] = [
-                'HLT_Ele35_WPTight_Gsf',
-                'HLT_Ele38_WPTight_Gsf',
-                'HLT_Ele40_WPTight_Gsf',
-                'HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL',
-                'HLT_DoubleEle33_CaloIdL_MW',
-                'HLT_Mu8_DiEle12_CaloIdL_TrackIdL',
-                'HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ',
+                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_DoubleEle25_CaloIdL_MW",
+                "HLT_Ele32_WPTight_Gsf",
             ]
 
 
         # SingleMuon
         if self._year=='2016':
             triggerPaths['SingleMuon'] = [
-                'HLT_IsoMu24',
+                "HLT_IsoMu20",
+                "HLT_IsoTkMu20",
+                "HLT_IsoMu22",
+                "HLT_IsoTkMu22",
+                "HLT_IsoMu24",
+                "HLT_IsoTkMu24",
             ]
         elif self._year=='2017':
             triggerPaths['SingleMuon'] = [
-                #'HLT_IsoMu24', # prescaled for a couple fb-1
-                'HLT_IsoMu27',
+                "HLT_IsoMu27",
             ]
         elif self._year=='2018':
             triggerPaths['SingleMuon'] = [
-                'HLT_IsoMu24',
+                "HLT_IsoMu24",
             ]
 
         # SingleElectron
         if self._year=='2016':
             triggerPaths['SingleElectron'] = [
+                "HLT_Ele25_eta2p1_WPTight_Gsf",
+                "HLT_Ele27_WPTight_Gsf",
+                "HLT_Ele27_eta2p1_WPLoose_Gsf",
+                "HLT_Ele32_eta2p1_WPTight_Gsf",
             ]
 
 
