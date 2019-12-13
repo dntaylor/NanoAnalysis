@@ -111,6 +111,7 @@ datasets = [
     'WZTo3LNu_TuneCP5_13TeV-powheg-pythia8',
     # ZZ
     'ZZTo4L_13TeV_powheg_pythia8',
+    'ZZTo4L_13TeV_powheg_pythia8_ext1',
     'ZZTo4L_13TeV_powheg_pythia8_TuneCP5',
     'ZZTo2L2Nu_13TeV_powheg_pythia8',
     'GluGluToContinToZZTo4e_13TeV_MCFM701_pythia8',
@@ -127,16 +128,23 @@ datasets = [
     'GluGluToContinToZZTo2mu2nu_13TeV_MCFM701_pythia8',
     'GluGluToContinToZZTo4tau_13TeV_MCFM701_pythia8',
     'GluGluToContinToZZTo4tau_13TeV_TuneCP5_MCFM701_pythia8',
-    # Higgs v6/709 is 2016, v7011 is 2017/2018
+    # Higgs v702/709 is 2016, v7011 is 2017/2018
+    'GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV709_pythia8',
     'GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8',
-    'GluGluHToZZTo4L_M125_13TeV_powheg2_minloHJJ_JHUgenV6_pythia8',
-    'GluGluHToZZTo4L_M125_13TeV_powheg2_minloHJJ_JHUGenV7011_pythia8',
     'VBF_HToZZTo4L_M125_13TeV_powheg2_JHUGenV709_pythia8',
     'VBF_HToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8',
-    'WplusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV7011_pythia8', # no 2016?
-    'WminusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV7011_pythia8', # no 2016?
-    'bbH_HToZZTo4L_M125_13TeV_JHUGenV7011_pythia8', # no 2016?
-    'GluGluToZH_HToZZTo4L_M125_13TeV_JHUGenV723_pythia8', # 2016/2017/2018
+    'WplusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV709_pythia8',
+    'WplusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV7011_pythia8',
+    'WminusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV709_pythia8',
+    'WminusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV7011_pythia8',
+    'ZH_HToZZ_4LFilter_M125_13TeV_powheg2-minlo-HZJ_JHUGenV709_pythia8',
+    'ZH_HToZZ_4LFilter_M125_13TeV_powheg2-minlo-HZJ_JHUGenV7011_pythia8',
+    'ttH_HToZZ_4LFilter_M125_13TeV_powheg2_JHUGenV709_pythia',
+    'ttH_HToZZ_4LFilter_M125_13TeV_powheg2_JHUGenV7011_pythia',
+    'bbH_HToZZTo4L_M125_13TeV_JHUgenV702_pythia8',
+    'bbH_HToZZTo4L_M125_13TeV_JHUGenV7011_pythia8',
+    'tqH_HToZZTo4L_M125_13TeV_JHUgenV702_pythia8',
+    'tqH_HToZZTo4L_M125_13TeV_JHUgenV7011_pythia8',
 ]
 
 

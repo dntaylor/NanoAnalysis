@@ -81,13 +81,14 @@ class HZZProcessor(processor.ProcessorABC):
         # TODO: check
         pt = electrons.pt
         eta = abs(electrons.eta+electrons.deltaEtaSC)
-        mva = electrons.mvaFall17V2Iso
-        tightBin00 = ((pt<=10) & (eta<0.8)                  & (mva>0.5739521065342641))
-        tightBin01 = ((pt<=10) & ((eta>=0.8) & (eta<1.479)) & (mva>0.5504628790992929))
-        tightBin02 = ((pt<=10) & (eta>=1.479)               & (mva>0.5924627534389098))
-        tightBin10 = ((pt>10 ) & (eta<0.8)                  & (mva>-0.03391387993354392))
-        tightBin11 = ((pt>10 ) & ((eta>=0.8) & (eta<1.479)) & (mva>-0.018451958064666783))
-        tightBin12 = ((pt>10 ) & (eta>=1.479)               & (mva>-0.38565459150737535))
+        mva = electrons.mva
+        # these are the 2017 trainings only, because that is what is available
+        tightBin00 = ((pt<=10) & (eta<0.8)                  & (mva>0.8955937602))
+        tightBin01 = ((pt<=10) & ((eta>=0.8) & (eta<1.479)) & (mva>0.91106464032))
+        tightBin02 = ((pt<=10) & (eta>=1.479)               & (mva>0.94067753025))
+        tightBin10 = ((pt>10 ) & (eta<0.8)                  & (mva>0.04240620843))
+        tightBin11 = ((pt>10 ) & ((eta>=0.8) & (eta<1.479)) & (mva>0.0047338429))
+        tightBin12 = ((pt>10 ) & (eta>=1.479)               & (mva>-0.60423293572))
         tightCut = (tightBin00 | tightBin01 | tightBin02 | tightBin10 | tightBin11 | tightBin12)
 
         hzzTight = (hzzLoose & tightCut)
@@ -95,6 +96,25 @@ class HZZProcessor(processor.ProcessorABC):
         electrons['hzzLooseNoIso'] = hzzLooseNoIso
         electrons['hzzLoose'] = hzzLoose
         electrons['hzzTight'] = hzzTight
+        
+    def _add_photon_id(self, photons, muons, electrons):
+        ptCut = (photons.pt>2)
+        etaCut = (abs(photons.eta)<2.4)
+        isoCut = (photons.relIso03<1.8)
+
+        hzzPreselection = (ptCut & etaCut & isoCut)
+
+        # matching muons is all that is available now
+        drOverEtCut = (photons.dROverEt2<0.012)
+        # TODO: not sure on this yet
+        drMuonCut = (photons.delta_r(muons[:,photons.drMuonIdx])<0.5)
+
+        hzzMatchMuon = (hzzPreselection & drOverEtCut & drMuonCut)
+        hzzMatchElectron = (hzzPreselection & (hzzPreselection.zeros_like()))
+
+        photons['hzzPreselection'] = hzzPreselection
+        photons['hzzMatchMuon'] = hzzMatchMuon
+        photons['hzzMatchElectron'] = hzzMatchElectron
         
 
     def _add_trigger(self,df):
@@ -261,11 +281,15 @@ class HZZProcessor(processor.ProcessorABC):
 
         output['cutflow']['all events'] += df['event'].size
 
+        logging.debug('adding trigger')
         self._add_trigger(df)
 
         output['cutflow']['pass trigger'] += df['passHLT'].sum()
 
         
+        # require one good vertex
+        logging.debug('checking vertices')
+        output['cutflow']['good vertex'] += (df['PV_npvsGood']>0).sum()
 
 
         dataset = df['dataset']
@@ -286,8 +310,17 @@ class HZZProcessor(processor.ProcessorABC):
             pfRelIso03_all=df['Muon_pfRelIso03_all'],
             isPFcand=df['Muon_isPFcand'],
             highPtId=df['Muon_highPtId'],
+            fsrPhotonIdx=df['Muon_fsrPhotonIdx'],
         )
+
         logging.debug('building electrons')
+        if self._year=='2016':
+            mvaDisc = "mvaSummer16IdIso"
+        elif self._year=='2017':
+            mvaDisc = "mvaFall17V2Iso"
+        else:
+            mvaDisc = "mvaAutumn18IdIso"
+        mvaDisc = "mvaFall17V2Iso" # only one available
         electrons = JaggedCandidateArray.candidatesfromcounts(
             df['nElectron'],
             pt=df['Electron_pt'],
@@ -300,7 +333,19 @@ class HZZProcessor(processor.ProcessorABC):
             sip3d=df['Electron_sip3d'],
             pfRelIso03_all=df['Electron_pfRelIso03_all'],
             deltaEtaSC=df['Electron_deltaEtaSC'],
-            mvaFall17V2Iso=df['Electron_mvaFall17V2Iso'],
+            mva=df['Electron_{}'.format(mvaDisc)],
+        )
+
+        logging.debug('building fsr photons')
+        photons = JaggedCandidateArray.candidatesfromcounts(
+            df['nFsrPhoton'],
+            pt=df['FsrPhoton_pt'],
+            eta=df['FsrPhoton_eta'],
+            phi=df['FsrPhoton_phi'],
+            mass=df['FsrPhoton_pt'].zeros_like(),
+            dROverEt2=df['FsrPhoton_dROverEt2'],
+            relIso03=df['FsrPhoton_relIso03'],
+            muonIdx=df['FsrPhoton_muonIdx'],
         )
 
 
@@ -308,6 +353,8 @@ class HZZProcessor(processor.ProcessorABC):
         self._add_muon_id(muons)
         logging.debug('adding electron id')
         self._add_electron_id(electrons)
+        logging.debug('add fsr photon id')
+        self._add_photon_id(photons,muons,electrons)
 
         logging.debug('selecting muons')
         hzzTightMuonId = (muons.hzzTight>0)
@@ -316,6 +363,8 @@ class HZZProcessor(processor.ProcessorABC):
         logging.debug('selecting electrons')
         hzzTightElectronId = (electrons.hzzTight>0)
         electrons = electrons[hzzTightElectronId]
+
+        # TODO: cross clean electrons within DR<0.05 of tight muon
 
         fourleptons = (muons.counts >=4) | (electrons.counts >= 4) | ((muons.counts >= 2) & (electrons.counts >= 2))
         output['cutflow']['four leptons'] += fourleptons.sum()
@@ -335,6 +384,7 @@ class HZZProcessor(processor.ProcessorABC):
         zz_2e2m['1'] = zz_2e2m['0']['1']
         zz_2e2m['0'] = zz_2e2m['0']['0']
         
+        # TODO: reevaluate best combination to match HZZ
         def massmetric(cands, i, j):
             z1mass = (cands['%d' % i]['p4'] + cands['%d' % j]['p4']).mass
             k, l = set(range(4)) - {i, j}
