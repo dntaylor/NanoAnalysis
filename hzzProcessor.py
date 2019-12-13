@@ -19,6 +19,9 @@ logging.basicConfig(level=logging.INFO, stream=sys.stderr,format='%(asctime)s.%(
 
 
 class HZZProcessor(processor.ProcessorABC):
+    # will sync with
+    # https://twiki.cern.ch/twiki/bin/viewauth/CMS/HiggsZZ4lRunIILegacy
+    # to the best of NanoAOD ability
     def __init__(self,year='2018'):
         self._year = year
 
