@@ -28,10 +28,15 @@ class HZZProcessor(processor.ProcessorABC):
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
         mass_axis = hist.Bin("mass", r"$m_{4\ell}$ [GeV]", 600, 0.25, 300)
+        zmass_axis = hist.Bin("mass", r"$m_{2\ell}$ [GeV]", 240, 0, 120)
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
+        met_axis = hist.Bin("pt", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
 
         self._accumulator = processor.dict_accumulator({
             'mass': hist.Hist("Counts", dataset_axis, channel_axis, mass_axis),
+            'z1mass': hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis),
+            'z2mass': hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis),
+            #'met': hist.Hist("Counts", dataset_axis, channel_axis, met_axis),
             #'pt_lead': hist.Hist("Counts", dataset_axis, channel_axis, pt_axis),
             'cutflow': processor.defaultdict_accumulator(int),
         })
@@ -281,6 +286,7 @@ class HZZProcessor(processor.ProcessorABC):
         logging.debug('starting process')
         output = self.accumulator.identity()
 
+        # TODO: instead of cutflow, use processor.PackedSelection
         output['cutflow']['all events'] += df['event'].size
 
         logging.debug('adding trigger')
@@ -358,7 +364,7 @@ class HZZProcessor(processor.ProcessorABC):
         logging.debug('add fsr photon id')
         self._add_photon_id(photons,muons,electrons)
 
-
+        # TODO, select loose cands here, tight cands later
 
         logging.debug('selecting muons')
         hzzTightMuonId = (muons.hzzTight>0)
@@ -389,6 +395,7 @@ class HZZProcessor(processor.ProcessorABC):
         zz_2e2m['0'] = zz_2e2m['0']['0']
         
         # TODO: reevaluate best combination to match HZZ
+        # and include FSR
         def massmetric(cands, i, j):
             z1mass = (cands['%d' % i]['p4'] + cands['%d' % j]['p4']).mass
             k, l = set(range(4)) - {i, j}
@@ -452,16 +459,47 @@ class HZZProcessor(processor.ProcessorABC):
             channel='4e',
             mass=zz_4e.p4.mass.flatten(),
         )
+        output['z1mass'].fill(
+            dataset=dataset,
+            channel='4e',
+            mass=z1_4e.flatten(),
+        )
+        output['z2mass'].fill(
+            dataset=dataset,
+            channel='4e',
+            mass=z2_4e.flatten(),
+        )
         output['mass'].fill(
             dataset=dataset,
             channel='4m',
             mass=zz_4m.p4.mass.flatten(),
+        )
+        output['z1mass'].fill(
+            dataset=dataset,
+            channel='4m',
+            mass=z1_4m.flatten(),
+        )
+        output['z2mass'].fill(
+            dataset=dataset,
+            channel='4m',
+            mass=z2_4m.flatten(),
         )
         output['mass'].fill(
             dataset=dataset,
             channel='2e2m',
             mass=zz_2e2m.p4.mass.flatten(),
         )
+        output['z1mass'].fill(
+            dataset=dataset,
+            channel='2e2m',
+            mass=z1_2e2m.flatten(),
+        )
+        output['z2mass'].fill(
+            dataset=dataset,
+            channel='2e2m',
+            mass=z2_2e2m.flatten(),
+        )
+
         #output['pt_lead'].fill(
         #    dataset=dataset,
         #    channel=channel,
