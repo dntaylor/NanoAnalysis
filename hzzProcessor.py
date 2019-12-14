@@ -10,7 +10,7 @@ import uproot_methods
 from coffea import hist, processor
 from coffea.util import load, save
 from coffea.analysis_objects import JaggedCandidateArray
-from awkward import JaggedArray
+from awkward import JaggedArray, IndexedArray
 
 ZMASS = 91.1876
 
@@ -109,11 +109,10 @@ class HZZProcessor(processor.ProcessorABC):
 
         # matching muons is all that is available now
         drOverEtCut = (photons.dROverEt2<0.012)
-        # TODO: not sure on this yet
-        drMuonCut = (photons.delta_r(muons[:,photons.drMuonIdx])<0.5)
+        drMuonCut = (photons.p4.delta_r(muons.p4[photons.muonIdx])<0.5)
 
         hzzMatchMuon = (hzzPreselection & drOverEtCut & drMuonCut)
-        hzzMatchElectron = (hzzPreselection & (hzzPreselection.zeros_like()))
+        hzzMatchElectron = (hzzPreselection & (np.zeros_like(hzzPreselection)))
 
         photons['hzzPreselection'] = hzzPreselection
         photons['hzzMatchMuon'] = hzzMatchMuon
@@ -345,7 +344,7 @@ class HZZProcessor(processor.ProcessorABC):
             pt=df['FsrPhoton_pt'],
             eta=df['FsrPhoton_eta'],
             phi=df['FsrPhoton_phi'],
-            mass=df['FsrPhoton_pt'].zeros_like(),
+            mass=np.zeros_like(df['FsrPhoton_pt']),
             dROverEt2=df['FsrPhoton_dROverEt2'],
             relIso03=df['FsrPhoton_relIso03'],
             muonIdx=df['FsrPhoton_muonIdx'],
@@ -358,6 +357,8 @@ class HZZProcessor(processor.ProcessorABC):
         self._add_electron_id(electrons)
         logging.debug('add fsr photon id')
         self._add_photon_id(photons,muons,electrons)
+
+
 
         logging.debug('selecting muons')
         hzzTightMuonId = (muons.hzzTight>0)

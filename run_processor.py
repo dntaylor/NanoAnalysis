@@ -35,40 +35,28 @@ if __name__ == '__main__':
         else:
             client = Client(os.environ['DASK_SCHEDULER'])
 
-    with open('data.json') as f:
-        fulldatafileset = json.load(f)
-    with open('mc.json') as f:
-        fullmcfileset = json.load(f)
-
     redirector = 'root://cmsxrootd.fnal.gov/'
     #if args.test: redirector = 'root://cmsxrootd.hep.wisc.edu/'
     if args.test: redirector = '/hdfs'
 
-    # 2018
-    testmcsamples = [
-        #'DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8',
-        #'TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8',
-        #'WZTo3LNu_TuneCP5_13TeV-powheg-pythia8',
-        #'ZZTo4L_13TeV_powheg_pythia8_TuneCP5',
-        'GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8',
-    ]
-    testdatasamples = [
-        #'DoubleMuon',
-        #'EGamma',
-    ]
+    if args.test:
+        fileset = {'DY': ['dy_2018.root'], 'HZZ': ['hzz_2018.root'], 'DoubleMuon': ['DoubleMuon_2018.root'],}
+    else:
+        with open('data.json') as f:
+            fulldatafileset = json.load(f)
+        with open('mc.json') as f:
+            fullmcfileset = json.load(f)
 
-    fileset = {}
-    for s in fulldatafileset[args.year]:
-        if args.test and s not in testdatasamples: continue
-        fileset[s] = []
-        for d in fulldatafileset[args.year][s]['datasets']:
-            if args.test and 'Run2018A' not in d: continue
-            fileset[s] += [redirector+x for x in fulldatafileset[args.year][s]['files'][d]]
-    for s in fullmcfileset[args.year]:
-        if args.test and s not in testmcsamples: continue
-        fileset[s] = []
-        for d in fullmcfileset[args.year][s]['datasets']:
-            fileset[s] += [redirector+x for x in fullmcfileset[args.year][s]['files'][d]]
+        fileset = {}
+        for s in fulldatafileset[args.year]:
+            fileset[s] = []
+            for d in fulldatafileset[args.year][s]['datasets']:
+                if args.test and 'Run2018A' not in d: continue
+                fileset[s] += [redirector+x for x in fulldatafileset[args.year][s]['files'][d]]
+        for s in fullmcfileset[args.year]:
+            fileset[s] = []
+            for d in fullmcfileset[args.year][s]['datasets']:
+                fileset[s] += [redirector+x for x in fullmcfileset[args.year][s]['files'][d]]
 
     #if args.test:
     #    for s in fileset: fileset[s] = fileset[s][:1]

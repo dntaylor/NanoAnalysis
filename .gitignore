@@ -134,3 +134,4 @@ columnar/
 columnar.tar.gz
 *.root
 *.json
+*.ipynb
