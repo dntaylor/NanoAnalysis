@@ -132,3 +132,5 @@ dmypy.json
 *.coffea
 columnar/
 columnar.tar.gz
+*.root
+*.json
