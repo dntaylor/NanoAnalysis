@@ -128,6 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# mac
+.DS_store
+
 # analysis specific stuff
 *.coffea
 columnar/

@@ -272,7 +272,7 @@ class HZZProcessor(processor.ProcessorABC):
                 else:
                     triggersToVeto += [p]
 
-        result = np.zeros_like(df['event'])
+        result = np.zeros_like(df['event'],dtype=bool)
         for p in triggersToAccept:
             result = ((result) | (df[p]))
         for p in triggersToVeto:
@@ -286,18 +286,24 @@ class HZZProcessor(processor.ProcessorABC):
         logging.debug('starting process')
         output = self.accumulator.identity()
 
+        selection = processor.PackedSelection()
+
         # TODO: instead of cutflow, use processor.PackedSelection
         output['cutflow']['all events'] += df['event'].size
 
         logging.debug('adding trigger')
         self._add_trigger(df)
 
-        output['cutflow']['pass trigger'] += df['passHLT'].sum()
+        passHLT = df['passHLT']
+        selection.add('trigger',passHLT)
+        output['cutflow']['pass trigger'] += passHLT.sum()
 
         
         # require one good vertex
         logging.debug('checking vertices')
-        output['cutflow']['good vertex'] += (df['PV_npvsGood']>0).sum()
+        passGoodVertex = (df['PV_npvsGood']>0)
+        output['cutflow']['good vertex'] += passGoodVertex.sum()
+        selection.add('goodVertex',passGoodVertex)
 
 
         dataset = df['dataset']
@@ -319,6 +325,7 @@ class HZZProcessor(processor.ProcessorABC):
             isPFcand=df['Muon_isPFcand'],
             highPtId=df['Muon_highPtId'],
             fsrPhotonIdx=df['Muon_fsrPhotonIdx'],
+            pdgId=df['Muon_pdgId'],
         )
 
         logging.debug('building electrons')
@@ -342,6 +349,7 @@ class HZZProcessor(processor.ProcessorABC):
             pfRelIso03_all=df['Electron_pfRelIso03_all'],
             deltaEtaSC=df['Electron_deltaEtaSC'],
             mva=df['Electron_{}'.format(mvaDisc)],
+            pdgId=df['Electron_pdgId'],
         )
 
         logging.debug('building fsr photons')
@@ -376,24 +384,46 @@ class HZZProcessor(processor.ProcessorABC):
 
         # TODO: cross clean electrons within DR<0.05 of tight muon
 
-        fourleptons = (muons.counts >=4) | (electrons.counts >= 4) | ((muons.counts >= 2) & (electrons.counts >= 2))
-        output['cutflow']['four leptons'] += fourleptons.sum()
+        passFourLeptons = (muons.counts >=4) | (electrons.counts >= 4) | ((muons.counts >= 2) & (electrons.counts >= 2))
+        output['cutflow']['four leptons'] += passFourLeptons.sum()
+        selection.add('fourLeptons',passFourLeptons)
+
         
         # build cands
+        # remake zz to have same columns
+        # pt eta phi mass charge pdgId
+        logging.debug('rebuilding leptons')
+        def rebuild(leptons):
+            return JaggedCandidateArray.candidatesfromoffsets(
+                leptons.offsets,
+                pt=leptons.pt.flatten(),
+                eta=leptons.eta.flatten(),
+                phi=leptons.phi.flatten(),
+                mass=leptons.mass.flatten(),
+                charge=leptons.charge.flatten(),
+                pdgId=leptons.pdgId.flatten(),
+            )
+        newMuons = rebuild(muons)
+        newElectrons = rebuild(electrons)
+
+
         logging.debug('building 2 leptons')
-        ee_cands = electrons.choose(2)
-        mm_cands = muons.choose(2)
+        ee_cands = newElectrons.choose(2)
+        mm_cands = newMuons.choose(2)
         
         logging.debug('building 4 leptons')
-        zz_4e = electrons.choose(4)
-        zz_4m = muons.choose(4)
+        zz_4e = newElectrons.choose(4)
+        zz_4m = newMuons.choose(4)
         zz_2e2m = ee_cands.cross(mm_cands)
         # for some reason cross creates nested
         zz_2e2m['3'] = zz_2e2m['1']['1']
         zz_2e2m['2'] = zz_2e2m['1']['0']
         zz_2e2m['1'] = zz_2e2m['0']['1']
         zz_2e2m['0'] = zz_2e2m['0']['0']
-        
+
+        # combine them
+        zz = JaggedArray.concatenate([zz_4e,zz_4m,zz_2e2m], axis=1)
+
         # TODO: reevaluate best combination to match HZZ
         # and include FSR
         def massmetric(cands, i, j):
@@ -402,15 +432,18 @@ class HZZProcessor(processor.ProcessorABC):
             z2mass = (cands['%d' % k]['p4'] + cands['%d' % l]['p4']).mass
             deltam = np.abs(z1mass - ZMASS)
             deltaq = np.abs(cands['%d' % i]['charge'] + cands['%d' % j]['charge'])
-            # inflate deltam to absurd number if charge sum is nonzero
-            return z1mass, z2mass, deltam + 1e10*deltaq
+            deltaf1 = np.abs(cands['%d' % i]['pdgId'] + cands['%d' % j]['pdgId'])
+            deltaf2 = np.abs(cands['%d' % k]['pdgId'] + cands['%d' % l]['pdgId'])
+            # inflate deltam to absurd number if charge sum is nonzero or different flavor
+            return z1mass, z2mass, deltam + 1e10*deltaq + 1e10*deltaf1 + 1e10*deltaf2
 
 
         def bestcombination(zzcands):
             good_charge = sum(zzcands[str(i)]['charge'] for i in range(4)) == 0
             good_event = good_charge.sum() == 1
             # this downselection keeps all events where exactly one candidate satisfies the requirement
-            # but does not reduce the number of events, i.e. len(zz_4m) stays the same
+            # but does not reduce the number of events, i.e. len(zz) stays the same
+            # TODO: dont veto on 5th, select best
             zzcands = zzcands[good_charge*good_event][:,:1]
             if zzcands.counts.sum() == 0:
                 # empty array (because a bug in concatenate makes it fail on empty arrays)
@@ -438,73 +471,63 @@ class HZZProcessor(processor.ProcessorABC):
 
 
         logging.debug('selecting best combinations')
-        z1_4m, z2_4m = bestcombination(zz_4m)
-        z1_4e, z2_4e = bestcombination(zz_4e)
+        z1, z2 = bestcombination(zz)
+
+        passZCand = ((z1.counts>0) & (z2.counts>0))
+        selection.add('zCand',passZCand)
         
-        # for 2e2m its a bit simpler
-        good_charge = (zz_2e2m.i0['charge'] + zz_2e2m.i1['charge'] == 0) & (zz_2e2m.i2['charge'] + zz_2e2m.i3['charge'] == 0)
-        good_event = good_charge.sum() == 1
-        zz_2e2m = zz_2e2m[good_event*good_charge][:,:1]
-        za_2e2m, zb_2e2m, deltam_a = massmetric(zz_2e2m, 0, 1)
-        _, _, deltam_b = massmetric(zz_2e2m, 2, 3)
-        # this is a good place for awkward.where, but its not available yet
-        z_2e2m = JaggedArray.concatenate([za_2e2m, zb_2e2m], axis=1)
-        deltam = JaggedArray.concatenate([deltam_a, deltam_b], axis=1)
-        z1_2e2m = z_2e2m[deltam.argmin()]
-        z2_2e2m = z_2e2m[deltam.argmax()]
 
         logging.debug('filling')
-        output['mass'].fill(
-            dataset=dataset,
-            channel='4e',
-            mass=zz_4e.p4.mass.flatten(),
-        )
-        output['z1mass'].fill(
-            dataset=dataset,
-            channel='4e',
-            mass=z1_4e.flatten(),
-        )
-        output['z2mass'].fill(
-            dataset=dataset,
-            channel='4e',
-            mass=z2_4e.flatten(),
-        )
-        output['mass'].fill(
-            dataset=dataset,
-            channel='4m',
-            mass=zz_4m.p4.mass.flatten(),
-        )
-        output['z1mass'].fill(
-            dataset=dataset,
-            channel='4m',
-            mass=z1_4m.flatten(),
-        )
-        output['z2mass'].fill(
-            dataset=dataset,
-            channel='4m',
-            mass=z2_4m.flatten(),
-        )
-        output['mass'].fill(
-            dataset=dataset,
-            channel='2e2m',
-            mass=zz_2e2m.p4.mass.flatten(),
-        )
-        output['z1mass'].fill(
-            dataset=dataset,
-            channel='2e2m',
-            mass=z1_2e2m.flatten(),
-        )
-        output['z2mass'].fill(
-            dataset=dataset,
-            channel='2e2m',
-            mass=z2_2e2m.flatten(),
-        )
+        for chan in ['4e','4m','2e2m']:
+            if chan=='4e':
+                chanSel = ((abs(zz['0']['pdgId'])==11)
+                           & (abs(zz['1']['pdgId'])==11)
+                           & (abs(zz['2']['pdgId'])==11)
+                           & (abs(zz['3']['pdgId'])==11))
+            if chan=='4m':
+                chanSel = ((abs(zz['0']['pdgId'])==13)
+                           & (abs(zz['1']['pdgId'])==13)
+                           & (abs(zz['2']['pdgId'])==13)
+                           & (abs(zz['3']['pdgId'])==13))
+            if chan=='2e2m':
+                chanSel = (((abs(zz['0']['pdgId'])==11)
+                           & (abs(zz['1']['pdgId'])==11)
+                           & (abs(zz['2']['pdgId'])==13)
+                           & (abs(zz['3']['pdgId'])==13))
+                           | ((abs(zz['0']['pdgId'])==13)
+                           & (abs(zz['1']['pdgId'])==13)
+                           & (abs(zz['2']['pdgId'])==11)
+                           & (abs(zz['3']['pdgId'])==11)))
 
-        #output['pt_lead'].fill(
-        #    dataset=dataset,
-        #    channel=channel,
-        #    pt=pt_lead.flatten(),
-        #)
+            # TODO: all selections and scalefactors
+            cut = selection.all('trigger','goodVertex','fourLeptons','zCand')
+            weight = chanSel.astype(float)
+
+
+            output['mass'].fill(
+                dataset=dataset,
+                channel=chan,
+                mass=zz[cut].p4.mass.flatten(),
+                weight=weight[cut].flatten(),
+            )
+            output['z1mass'].fill(
+                dataset=dataset,
+                channel=chan,
+                mass=z1[cut].flatten(),
+                weight=weight[cut].flatten(),
+            )
+            output['z2mass'].fill(
+                dataset=dataset,
+                channel=chan,
+                mass=z2[cut].flatten(),
+                weight=weight[cut].flatten(),
+            )
+            #output['pt_lead'].fill(
+            #    dataset=dataset,
+            #    channel=channel,
+            #    pt=pt_lead.flatten(),
+            #)
+
         return output
 
 
