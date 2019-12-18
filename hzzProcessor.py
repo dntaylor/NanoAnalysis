@@ -77,14 +77,14 @@ class HZZProcessor(processor.ProcessorABC):
         mass_axis = hist.Bin("mass", r"$m_{4\ell}$ [GeV]", 600, 0.25, 300)
         zmass_axis = hist.Bin("mass", r"$m_{2\ell}$ [GeV]", 240, 0, 120)
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
-        met_axis = hist.Bin("pt", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
+        met_axis = hist.Bin("met", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
 
         hist.Hist.DEFAULT_DTYPE = 'f'  # save some space by keeping float bin counts instead of double
         self._accumulator = processor.dict_accumulator({
             'mass': hist.Hist("Counts", dataset_axis, channel_axis, mass_axis),
             'z1mass': hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis),
             'z2mass': hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis),
-            #'met': hist.Hist("Counts", dataset_axis, channel_axis, met_axis),
+            'met': hist.Hist("Counts", dataset_axis, channel_axis, met_axis),
             #'pt_lead': hist.Hist("Counts", dataset_axis, channel_axis, pt_axis),
             'cutflow': processor.defaultdict_accumulator(int),
             'sumw': processor.defaultdict_accumulator(int),
@@ -653,11 +653,12 @@ class HZZProcessor(processor.ProcessorABC):
                 mass=z2[cut].flatten(),
                 weight=weight[cut].flatten(),
             )
-            #output['pt_lead'].fill(
-            #    dataset=dataset,
-            #    channel=channel,
-            #    pt=pt_lead.flatten(),
-            #)
+            output['met'].fill(
+                dataset=dataset,
+                channel=chan,
+                met=df['MET_pt'][cut],
+                weight=weight[cut].flatten(),
+            )
 
         return output
 
