@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 import uproot
 import uproot_methods
-from coffea import hist, processor
+from coffea import hist, processor, lookup_tools
 from coffea.util import load, save
 from coffea.analysis_objects import JaggedCandidateArray
 from awkward import JaggedArray, IndexedArray
@@ -25,6 +25,38 @@ class HZZProcessor(processor.ProcessorABC):
     def __init__(self,year='2018'):
         self._year = year
 
+        self._corrections = {}
+
+        # TODO load scalefactors
+        extractor = lookup_tools.extractor()
+        #extractor.add_weight_sets('prefix_ * path/to/file.root')
+        extractor.finalize()
+        evaluator = extractor.make_evaluator()
+
+        # pileup
+        with uproot.open(f'data/pileup/dataPileup{self._year}.root') as f:
+            norm = lambda x: x/x.sum()
+            edges = f['pileup'].edges
+            dataPileup = norm(f['pileup'].values)
+            dataPileupUp = norm(f['pileup_plus'].values)
+            dataPileupDown = norm(f['pileup_minus'].values)
+        with uproot.open(f'data/pileup/mcPileup{self._year}.root') as f:
+            mcPileup = f['pu_mc'].values
+        mask = (mcPileup>0)
+        pileupRatio = dataPileup.copy()
+        pileupRatioUp = dataPileupUp.copy()
+        pileupRatioDown = dataPileupDown.copy()
+        pileupRatio[mask] /= mcPileup[mask]
+        pileupRatioUp[mask] /= mcPileup[mask]
+        pileupRatioDown[mask] /= mcPileup[mask]
+
+        self._corrections[f'pileupWeight{self._year}'] = lookup_tools.dense_lookup.dense_lookup(pileupRatio, edges)
+        self._corrections[f'pileupWeight{self._year}Up'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioUp, edges)
+        self._corrections[f'pileupWeight{self._year}Down'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioDown, edges)
+
+        # TODO: cross sections
+        self._corrections['xsec'] = {}
+
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
         mass_axis = hist.Bin("mass", r"$m_{4\ell}$ [GeV]", 600, 0.25, 300)
@@ -32,6 +64,7 @@ class HZZProcessor(processor.ProcessorABC):
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
         met_axis = hist.Bin("pt", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
 
+        hist.Hist.DEFAULT_DTYPE = 'f'  # save some space by keeping float bin counts instead of double
         self._accumulator = processor.dict_accumulator({
             'mass': hist.Hist("Counts", dataset_axis, channel_axis, mass_axis),
             'z1mass': hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis),
@@ -39,7 +72,9 @@ class HZZProcessor(processor.ProcessorABC):
             #'met': hist.Hist("Counts", dataset_axis, channel_axis, met_axis),
             #'pt_lead': hist.Hist("Counts", dataset_axis, channel_axis, pt_axis),
             'cutflow': processor.defaultdict_accumulator(int),
+            'sumw': processor.defaultdict_accumulator(int),
         })
+        
 
     @property
     def accumulator(self):
@@ -286,6 +321,10 @@ class HZZProcessor(processor.ProcessorABC):
         logging.debug('starting process')
         output = self.accumulator.identity()
 
+        dataset = df['dataset']
+        self._isData = dataset in ['SingleMuon','DoubleMuon','SingleElectron','DoubleEG','EGamma','MuonEG']
+
+
         selection = processor.PackedSelection()
 
         # TODO: instead of cutflow, use processor.PackedSelection
@@ -306,7 +345,6 @@ class HZZProcessor(processor.ProcessorABC):
         selection.add('goodVertex',passGoodVertex)
 
 
-        dataset = df['dataset']
         logging.debug('building muons')
         muons = JaggedCandidateArray.candidatesfromcounts(
             df['nMuon'],
@@ -348,7 +386,7 @@ class HZZProcessor(processor.ProcessorABC):
             sip3d=df['Electron_sip3d'],
             pfRelIso03_all=df['Electron_pfRelIso03_all'],
             deltaEtaSC=df['Electron_deltaEtaSC'],
-            mva=df['Electron_{}'.format(mvaDisc)],
+            mva=df[f'Electron_{mvaDisc}'],
             pdgId=df['Electron_pdgId'],
         )
 
@@ -476,6 +514,17 @@ class HZZProcessor(processor.ProcessorABC):
         passZCand = ((z1.counts>0) & (z2.counts>0))
         selection.add('zCand',passZCand)
         
+        weights = processor.Weights(df.size)
+        if self._isData: 
+            output['sumw'][dataset] = 0 # always set to 0 for data
+        else:
+            output['sumw'][dataset] += df['genWeight'].sum()
+            weights.add('genWeight',df['genWeight'])
+            weights.add('pileupWeight',
+                        self._corrections[f'pileupWeight{self._year}'](df['Pileup_nPU']),
+                        self._corrections[f'pileupWeight{self._year}Up'](df['Pileup_nPU']),
+                        self._corrections[f'pileupWeight{self._year}Down'](df['Pileup_nPU']),
+                        )
 
         logging.debug('filling')
         for chan in ['4e','4m','2e2m']:
@@ -501,7 +550,7 @@ class HZZProcessor(processor.ProcessorABC):
 
             # TODO: all selections and scalefactors
             cut = selection.all('trigger','goodVertex','fourLeptons','zCand')
-            weight = chanSel.astype(float)
+            weight = chanSel.astype(float) * weights.weight()
 
 
             output['mass'].fill(
@@ -532,6 +581,25 @@ class HZZProcessor(processor.ProcessorABC):
 
 
     def postprocess(self, accumulator):
+        lumis = {
+            '2016': 35920,
+            '2017': 41530,
+            '2018': 59740,
+        }
+        lumi = lumis[self._year]
+        scale = {}
+        for dataset, sumw in accumulator['sumw'].items():
+            if not sumw: continue
+            if dataset in self._corrections['xsec']:
+                scale[dataset] = lumi*self._corrections['xsec'][dataset]/sumw
+            else:
+                print(f'missing cross section for {dataset}')
+                scale[dataset] = lumi / sumw
+            
+        for h in accumulator.values():
+            if isinstance(h, hist.Hist):
+                h.scale(scale, axis="dataset")
+ 
         return accumulator
 
 
@@ -544,4 +612,4 @@ if __name__ == '__main__':
         year=args.year,
     )
 
-    save(processor_instance, 'hzzProcessor_{year}.coffea'.format(year=args.year))
+    save(processor_instance, f'hzzProcessor_{args.year}.coffea')
