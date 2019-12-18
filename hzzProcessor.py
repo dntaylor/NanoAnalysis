@@ -27,6 +27,14 @@ class HZZProcessor(processor.ProcessorABC):
 
         self._corrections = {}
 
+        # cross sections
+        # TODO: load
+        self._corrections['xsec'] = {}
+        # manually add the test samples
+        self._corrections['xsec']['DY'] = 6077.22
+        self._corrections['xsec']['HZZ'] = 43.92 * 2.64e-02	* (3.3658e-2*3)**2
+        self._corrections['xsec']['DoubleMuon'] = 1.
+
         extractor = lookup_tools.extractor()
         # electron
         extractor.add_weight_sets([
@@ -63,9 +71,6 @@ class HZZProcessor(processor.ProcessorABC):
         self._corrections[f'pileupWeight{self._year}'] = lookup_tools.dense_lookup.dense_lookup(pileupRatio, edges)
         self._corrections[f'pileupWeight{self._year}Up'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioUp, edges)
         self._corrections[f'pileupWeight{self._year}Down'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioDown, edges)
-
-        # TODO: cross sections
-        self._corrections['xsec'] = {}
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
@@ -476,7 +481,7 @@ class HZZProcessor(processor.ProcessorABC):
         zz = JaggedArray.concatenate([zz_4e,zz_4m,zz_2e2m], axis=1)
 
         # TODO: reevaluate best combination to match HZZ
-        # and include FSR
+        # TODO: include FSR
         def massmetric(cands, i, j):
             z1mass = (cands['%d' % i]['p4'] + cands['%d' % j]['p4']).mass
             k, l = set(range(4)) - {i, j}
@@ -507,49 +512,86 @@ class HZZProcessor(processor.ProcessorABC):
             z1mass = []
             z2mass = []
             iperm = []
+            z11 = []
+            z12 = []
+            z21 = []
+            z22 = []
             for i,j in [(0,1), (0,2), (0,3), (1,2), (1,3), (2,3)]:
                 z1, z2, idx = massmetric(zzcands, i, j)
                 z1mass.append(z1)
                 z2mass.append(z2)
                 iperm.append(idx)
+                k, l = set(range(4)) - {i,j}
+                i = z1.ones_like(dtype=int)*i
+                j = z1.ones_like(dtype=int)*j
+                k = z1.ones_like(dtype=int)*k
+                l = z1.ones_like(dtype=int)*l
+                z11.append(i)
+                z12.append(j)
+                z21.append(k)
+                z22.append(l)
+
 
             z1mass = JaggedArray.concatenate(z1mass, axis=1)
             z2mass = JaggedArray.concatenate(z2mass, axis=1)
             iperm = JaggedArray.concatenate(iperm, axis=1)
+            z11 = JaggedArray.concatenate(z11, axis=1)
+            z12 = JaggedArray.concatenate(z12, axis=1)
+            z21 = JaggedArray.concatenate(z21, axis=1)
+            z22 = JaggedArray.concatenate(z22, axis=1)
             z1mass = z1mass[iperm.argmin()]
             z2mass = z2mass[iperm.argmin()]
-            return z1mass, z2mass
+            z11 = z11[iperm.argmin()].astype(int).astype(str)
+            z12 = z12[iperm.argmin()].astype(int).astype(str)
+            z21 = z21[iperm.argmin()].astype(int).astype(str)
+            z22 = z22[iperm.argmin()].astype(int).astype(str)
+            return z1mass, z2mass, z11, z12, z21, z22
 
 
         logging.debug('selecting best combinations')
-        z1, z2 = bestcombination(zz)
+        z1, z2, z11, z12, z21, z22 = bestcombination(zz)
 
         passZCand = ((z1.counts>0) & (z2.counts>0))
+        output['cutflow']['z cand'] += passZCand.sum()
         selection.add('zCand',passZCand)
+
+        # im sure there is a better way, but for now just do this
+        def get_lepton_values(zl,key):
+            val = np.zeros_like(zl.flatten(),dtype=float)
+            for i in range(4):
+                mask = (str(i)==zl.flatten())
+                if key=='pt':
+                    val[mask] = zz[passZCand][str(i)].flatten()[mask]['p4'].pt
+                elif key=='eta':
+                    val[mask] = zz[passZCand][str(i)].flatten()[mask]['p4'].eta
+                elif key=='phi':
+                    val[mask] = zz[passZCand][str(i)].flatten()[mask]['p4'].phi
+                elif key=='mass':
+                    val[mask] = zz[passZCand][str(i)].flatten()[mask]['p4'].mass
+                else:
+                    val[mask] = zz[passZCand][str(i)].flatten()[mask][key]
+            return JaggedArray.fromoffsets(zl.offsets,val)
+
         
 
         chanSels = {}
+        z11pdg = get_lepton_values(z11,'pdgId')
+        z12pdg = get_lepton_values(z12,'pdgId')
+        z21pdg = get_lepton_values(z21,'pdgId')
+        z22pdg = get_lepton_values(z22,'pdgId')
         for chan in ['4e','4m','2e2m','2m2e']:
             if chan=='4e':
-                chanSels[chan] = ((abs(zz['0']['pdgId'])==11)
-                           & (abs(zz['1']['pdgId'])==11)
-                           & (abs(zz['2']['pdgId'])==11)
-                           & (abs(zz['3']['pdgId'])==11))
+                pdgIds = (11,11,11,11)
             if chan=='4m':
-                chanSels[chan] = ((abs(zz['0']['pdgId'])==13)
-                           & (abs(zz['1']['pdgId'])==13)
-                           & (abs(zz['2']['pdgId'])==13)
-                           & (abs(zz['3']['pdgId'])==13))
+                pdgIds = (13,13,13,13)
             if chan=='2e2m':
-                chanSels[chan] = ((abs(zz['0']['pdgId'])==11)
-                           & (abs(zz['1']['pdgId'])==11)
-                           & (abs(zz['2']['pdgId'])==13)
-                           & (abs(zz['3']['pdgId'])==13))
+                pdgIds = (11,11,13,13)
             if chan=='2m2e':
-                chanSels[chan] = ((abs(zz['0']['pdgId'])==13)
-                           & (abs(zz['1']['pdgId'])==13)
-                           & (abs(zz['2']['pdgId'])==11)
-                           & (abs(zz['3']['pdgId'])==11))
+                pdgIds = (13,13,11,11)
+            chanSels[chan] = ((abs(z11pdg)==pdgIds[0])
+                            & (abs(z12pdg)==pdgIds[1])
+                            & (abs(z21pdg)==pdgIds[2])
+                            & (abs(z22pdg)==pdgIds[3]))
 
         # TODO lepton scalefactors
         weights = processor.Weights(df.size)
@@ -564,33 +606,33 @@ class HZZProcessor(processor.ProcessorABC):
                         self._corrections[f'pileupWeight{self._year}Down'](df['Pileup_nPU']),
                         )
             # electron sf
-            # TODO: not working
             # gap: 1.442 1.566
-            #for ei in range(4):
-            #    ei = str(ei)
-            #    electronRecoSF = self._corrections['electron_reco'](zz[ei]['etaSC'],zz[ei].p4.pt)
-            #    electronIdSF = self._corrections['electron_hzz_id_nogap'](zz[ei]['etaSC'],zz[ei].p4.pt)
-            #    gapMask = ((abs(zz[ei]['etaSC'])>1.442) & (abs(zz[ei]['etaSC'])<1.566))
-            #    electronIdSF[gapMask] = self._corrections['electron_hzz_id_gap'](zz[ei]['etaSC'],zz[ei].p4.pt)[gapMask]
-            #    electronSF = np.ones_like(electronRecoSF)
-            #    if ei in ['0','1']:
-            #        chans = ['4e','2e2m']
-            #    if ei in ['2','3']:
-            #        chans = ['4e','2m2e']
-            #    for chan in chans:
-            #        electronSF[chanSels[chan]] *= electronRecoSF[chanSels[chan]]
-            #        electronSF[chanSels[chan]] *= electronIdSF[chanSels[chan]]
-            #    weights.add('electronSF'+ei,electronSF)
+            zls = [z11, z12, z21, z22]
+            for ei, zl in enumerate(zls):
+                ei = str(ei)
+                eta = get_lepton_values(zl,'etaSC')
+                pt = get_lepton_values(zl,'pt')
+                electronRecoSF = self._corrections['electron_reco'](eta,pt)
+                electronIdSF = self._corrections['electron_hzz_id_nogap'](eta,pt)
+                gapMask = ((abs(eta)>1.442) & (abs(eta)<1.566))
+                electronIdSF[gapMask] = self._corrections['electron_hzz_id_gap'](eta,pt)[gapMask]
+                electronSF = np.ones_like(electronRecoSF)
+                if ei in ['0','1']:
+                    chans = ['4e','2e2m']
+                if ei in ['2','3']:
+                    chans = ['4e','2m2e']
+                for chan in chans:
+                    chanSel = (chanSels[chan].ones_like().sum()>0) # turns empty arrays into 0's, nonempty int 1's
+                    electronSF[chanSel] *= electronRecoSF[chanSel].prod()
+                    electronSF[chanSel] *= electronIdSF[chanSel].prod()
+                weights.add('electronSF'+ei,electronSF)
             # TODO: muon sf
 
         logging.debug('filling')
-        for chan in ['4e','4m','2e2m']:
+        for chan in ['4e','4m','2e2m','2m2e']:
             # TODO: all selections and scalefactors
             cut = selection.all('trigger','goodVertex','fourLeptons','zCand')
-            if chan=='2e2m':
-                chanSel = (chanSels['2e2m'] | chanSels['2m2e'])
-            else:
-                chanSel = chanSels[chan]
+            chanSel = chanSels[chan]
             weight = chanSel.astype(float) * weights.weight()
 
             output['mass'].fill(
