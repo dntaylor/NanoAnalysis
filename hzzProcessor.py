@@ -27,11 +27,21 @@ class HZZProcessor(processor.ProcessorABC):
 
         self._corrections = {}
 
-        # TODO load scalefactors
         extractor = lookup_tools.extractor()
-        #extractor.add_weight_sets('prefix_ * path/to/file.root')
+        # electron
+        extractor.add_weight_sets([
+            # electron reco
+            f'electron_reco_ * data/scalefactors/electron/Ele_Reco_{self._year}.root',
+            # electron hzz id
+            f'electron_hzz_id_nogap_ * data/scalefactors/electron/ElectronSF_Legacy_{self._year}_NoGap.root',
+            f'electron_hzz_id_gap_ * data/scalefactors/electron/ElectronSF_Legacy_{self._year}_Gap.root',
+        ])
         extractor.finalize()
         evaluator = extractor.make_evaluator()
+
+        self._corrections['electron_reco'] = evaluator['electron_reco_EGamma_SF2D']
+        self._corrections['electron_hzz_id_nogap'] = evaluator['electron_hzz_id_nogap_EGamma_SF2D']
+        self._corrections['electron_hzz_id_gap'] = evaluator['electron_hzz_id_gap_EGamma_SF2D']
 
         # pileup
         with uproot.open(f'data/pileup/dataPileup{self._year}.root') as f:
@@ -123,7 +133,7 @@ class HZZProcessor(processor.ProcessorABC):
 
         # TODO: check
         pt = electrons.pt
-        eta = abs(electrons.eta+electrons.deltaEtaSC)
+        eta = abs(electrons.etaSC)
         mva = electrons.mva
         # these are the 2017 trainings only, because that is what is available
         tightBin00 = ((pt<=10) & (eta<0.8)                  & (mva>0.8955937602))
@@ -386,6 +396,7 @@ class HZZProcessor(processor.ProcessorABC):
             sip3d=df['Electron_sip3d'],
             pfRelIso03_all=df['Electron_pfRelIso03_all'],
             deltaEtaSC=df['Electron_deltaEtaSC'],
+            etaSC=df['Electron_eta']+df['Electron_deltaEtaSC'],
             mva=df[f'Electron_{mvaDisc}'],
             pdgId=df['Electron_pdgId'],
         )
@@ -440,6 +451,8 @@ class HZZProcessor(processor.ProcessorABC):
                 mass=leptons.mass.flatten(),
                 charge=leptons.charge.flatten(),
                 pdgId=leptons.pdgId.flatten(),
+                # needed for electron SF
+                etaSC=leptons.etaSC.flatten() if hasattr(leptons,'etaSC') else leptons.eta.flatten(),
             )
         newMuons = rebuild(muons)
         newElectrons = rebuild(electrons)
@@ -514,6 +527,31 @@ class HZZProcessor(processor.ProcessorABC):
         passZCand = ((z1.counts>0) & (z2.counts>0))
         selection.add('zCand',passZCand)
         
+
+        chanSels = {}
+        for chan in ['4e','4m','2e2m','2m2e']:
+            if chan=='4e':
+                chanSels[chan] = ((abs(zz['0']['pdgId'])==11)
+                           & (abs(zz['1']['pdgId'])==11)
+                           & (abs(zz['2']['pdgId'])==11)
+                           & (abs(zz['3']['pdgId'])==11))
+            if chan=='4m':
+                chanSels[chan] = ((abs(zz['0']['pdgId'])==13)
+                           & (abs(zz['1']['pdgId'])==13)
+                           & (abs(zz['2']['pdgId'])==13)
+                           & (abs(zz['3']['pdgId'])==13))
+            if chan=='2e2m':
+                chanSels[chan] = ((abs(zz['0']['pdgId'])==11)
+                           & (abs(zz['1']['pdgId'])==11)
+                           & (abs(zz['2']['pdgId'])==13)
+                           & (abs(zz['3']['pdgId'])==13))
+            if chan=='2m2e':
+                chanSels[chan] = ((abs(zz['0']['pdgId'])==13)
+                           & (abs(zz['1']['pdgId'])==13)
+                           & (abs(zz['2']['pdgId'])==11)
+                           & (abs(zz['3']['pdgId'])==11))
+
+        # TODO lepton scalefactors
         weights = processor.Weights(df.size)
         if self._isData: 
             output['sumw'][dataset] = 0 # always set to 0 for data
@@ -525,33 +563,35 @@ class HZZProcessor(processor.ProcessorABC):
                         self._corrections[f'pileupWeight{self._year}Up'](df['Pileup_nPU']),
                         self._corrections[f'pileupWeight{self._year}Down'](df['Pileup_nPU']),
                         )
+            # electron sf
+            # TODO: not working
+            # gap: 1.442 1.566
+            #for ei in range(4):
+            #    ei = str(ei)
+            #    electronRecoSF = self._corrections['electron_reco'](zz[ei]['etaSC'],zz[ei].p4.pt)
+            #    electronIdSF = self._corrections['electron_hzz_id_nogap'](zz[ei]['etaSC'],zz[ei].p4.pt)
+            #    gapMask = ((abs(zz[ei]['etaSC'])>1.442) & (abs(zz[ei]['etaSC'])<1.566))
+            #    electronIdSF[gapMask] = self._corrections['electron_hzz_id_gap'](zz[ei]['etaSC'],zz[ei].p4.pt)[gapMask]
+            #    electronSF = np.ones_like(electronRecoSF)
+            #    if ei in ['0','1']:
+            #        chans = ['4e','2e2m']
+            #    if ei in ['2','3']:
+            #        chans = ['4e','2m2e']
+            #    for chan in chans:
+            #        electronSF[chanSels[chan]] *= electronRecoSF[chanSels[chan]]
+            #        electronSF[chanSels[chan]] *= electronIdSF[chanSels[chan]]
+            #    weights.add('electronSF'+ei,electronSF)
+            # TODO: muon sf
 
         logging.debug('filling')
         for chan in ['4e','4m','2e2m']:
-            if chan=='4e':
-                chanSel = ((abs(zz['0']['pdgId'])==11)
-                           & (abs(zz['1']['pdgId'])==11)
-                           & (abs(zz['2']['pdgId'])==11)
-                           & (abs(zz['3']['pdgId'])==11))
-            if chan=='4m':
-                chanSel = ((abs(zz['0']['pdgId'])==13)
-                           & (abs(zz['1']['pdgId'])==13)
-                           & (abs(zz['2']['pdgId'])==13)
-                           & (abs(zz['3']['pdgId'])==13))
-            if chan=='2e2m':
-                chanSel = (((abs(zz['0']['pdgId'])==11)
-                           & (abs(zz['1']['pdgId'])==11)
-                           & (abs(zz['2']['pdgId'])==13)
-                           & (abs(zz['3']['pdgId'])==13))
-                           | ((abs(zz['0']['pdgId'])==13)
-                           & (abs(zz['1']['pdgId'])==13)
-                           & (abs(zz['2']['pdgId'])==11)
-                           & (abs(zz['3']['pdgId'])==11)))
-
             # TODO: all selections and scalefactors
             cut = selection.all('trigger','goodVertex','fourLeptons','zCand')
+            if chan=='2e2m':
+                chanSel = (chanSels['2e2m'] | chanSels['2m2e'])
+            else:
+                chanSel = chanSels[chan]
             weight = chanSel.astype(float) * weights.weight()
-
 
             output['mass'].fill(
                 dataset=dataset,
