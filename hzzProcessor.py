@@ -79,16 +79,18 @@ class HZZProcessor(processor.ProcessorABC):
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
         met_axis = hist.Bin("met", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
 
+        self._selections = ['hzz','massWindow']
+
         hist.Hist.DEFAULT_DTYPE = 'f'  # save some space by keeping float bin counts instead of double
-        self._accumulator = processor.dict_accumulator({
-            'mass': hist.Hist("Counts", dataset_axis, channel_axis, mass_axis),
-            'z1mass': hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis),
-            'z2mass': hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis),
-            'met': hist.Hist("Counts", dataset_axis, channel_axis, met_axis),
-            #'pt_lead': hist.Hist("Counts", dataset_axis, channel_axis, pt_axis),
-            'cutflow': processor.defaultdict_accumulator(int),
-            'sumw': processor.defaultdict_accumulator(int),
-        })
+        self._accumulator = processor.dict_accumulator()
+        for sel in self._selections:
+            self._accumulator[sel + '_mass'] = hist.Hist("Counts", dataset_axis, channel_axis, mass_axis)
+            self._accumulator[sel + '_z1mass'] = hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis)
+            self._accumulator[sel + '_z2mass'] = hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis)
+            self._accumulator[sel + '_met'] = hist.Hist("Counts", dataset_axis, channel_axis, met_axis)
+
+        self._accumulator['cutflow'] = processor.defaultdict_accumulator(int)
+        self._accumulator['sumw'] = processor.defaultdict_accumulator(int)
         
 
     @property
@@ -497,14 +499,14 @@ class HZZProcessor(processor.ProcessorABC):
         def bestcombination(zzcands):
             good_charge = sum(zzcands[str(i)]['charge'] for i in range(4)) == 0
             good_event = good_charge.sum() == 1
-            # this downselection keeps all events where exactly one candidate satisfies the requirement
-            # but does not reduce the number of events, i.e. len(zz) stays the same
-            # TODO: dont veto on 5th, select best
+            # this keeps the first zz cand in each event
+            # should instead sort the best first
+            # TODO: select best
             zzcands = zzcands[good_charge*good_event][:,:1]
             if zzcands.counts.sum() == 0:
                 # empty array (because a bug in concatenate makes it fail on empty arrays)
                 empty = JaggedArray.fromcounts(np.zeros(len(zzcands), dtype='i'), [])
-                return empty, empty
+                return zzcands, empty, empty, empty, empty, empty, empty
             # now we have to check the permutations of leptons for closest mass to Z boson
             # only 4 of these 6 permutations are valid charge pairs, but its easier
             # to compare them all, and assign a large delta mass rather than figure out which
@@ -545,15 +547,19 @@ class HZZProcessor(processor.ProcessorABC):
             z12 = z12[iperm.argmin()].astype(int).astype(str)
             z21 = z21[iperm.argmin()].astype(int).astype(str)
             z22 = z22[iperm.argmin()].astype(int).astype(str)
-            return z1mass, z2mass, z11, z12, z21, z22
+            return zzcands, z1mass, z2mass, z11, z12, z21, z22
 
 
         logging.debug('selecting best combinations')
-        z1, z2, z11, z12, z21, z22 = bestcombination(zz)
+        zz, z1, z2, z11, z12, z21, z22 = bestcombination(zz)
 
         passZCand = ((z1.counts>0) & (z2.counts>0))
         output['cutflow']['z cand'] += passZCand.sum()
         selection.add('zCand',passZCand)
+
+        passMassWindow = (passZCand & zz[((zz.p4.mass>115) & (zz.p4.mass<135))].counts>0)
+        output['cutflow']['mass window'] += passMassWindow.sum()
+        selection.add('massWindow',passMassWindow)
 
         # im sure there is a better way, but for now just do this
         def get_lepton_values(zl,key):
@@ -629,36 +635,40 @@ class HZZProcessor(processor.ProcessorABC):
             # TODO: muon sf
 
         logging.debug('filling')
-        for chan in ['4e','4m','2e2m','2m2e']:
+        for sel in self._selections:
             # TODO: all selections and scalefactors
-            cut = selection.all('trigger','goodVertex','fourLeptons','zCand')
-            chanSel = chanSels[chan]
-            weight = chanSel.astype(float) * weights.weight()
+            if sel=='hzz':
+                cut = selection.all('trigger','goodVertex','fourLeptons','zCand')
+            elif sel=='massWindow':
+                cut = selection.all('trigger','goodVertex','fourLeptons','zCand','massWindow')
+            for chan in ['4e','4m','2e2m','2m2e']:
+                chanSel = chanSels[chan]
+                weight = chanSel.astype(float) * weights.weight()
 
-            output['mass'].fill(
-                dataset=dataset,
-                channel=chan,
-                mass=zz[cut].p4.mass.flatten(),
-                weight=weight[cut].flatten(),
-            )
-            output['z1mass'].fill(
-                dataset=dataset,
-                channel=chan,
-                mass=z1[cut].flatten(),
-                weight=weight[cut].flatten(),
-            )
-            output['z2mass'].fill(
-                dataset=dataset,
-                channel=chan,
-                mass=z2[cut].flatten(),
-                weight=weight[cut].flatten(),
-            )
-            output['met'].fill(
-                dataset=dataset,
-                channel=chan,
-                met=df['MET_pt'][cut],
-                weight=weight[cut].flatten(),
-            )
+                output[sel+'_mass'].fill(
+                    dataset=dataset,
+                    channel=chan,
+                    mass=zz[cut].p4.mass.flatten(),
+                    weight=weight[cut].flatten(),
+                )
+                output[sel+'_z1mass'].fill(
+                    dataset=dataset,
+                    channel=chan,
+                    mass=z1[cut].flatten(),
+                    weight=weight[cut].flatten(),
+                )
+                output[sel+'_z2mass'].fill(
+                    dataset=dataset,
+                    channel=chan,
+                    mass=z2[cut].flatten(),
+                    weight=weight[cut].flatten(),
+                )
+                output[sel+'_met'].fill(
+                    dataset=dataset,
+                    channel=chan,
+                    met=df['MET_pt'][cut],
+                    weight=weight[cut].flatten(),
+                )
 
         return output
 
