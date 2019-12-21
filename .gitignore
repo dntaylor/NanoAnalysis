@@ -132,7 +132,7 @@ dmypy.json
 .DS_store
 
 # analysis specific stuff
-*.coffea
+#*.coffea
 columnar/
 columnar.tar.gz
 *.root

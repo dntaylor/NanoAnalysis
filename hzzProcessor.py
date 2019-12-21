@@ -652,15 +652,14 @@ class HZZProcessor(processor.ProcessorABC):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='HZZ processor')
-    parser.add_argument('year', choices=['2016', '2017', '2018'], default='2018', help='Data taking year')
-    args = parser.parse_args()
 
-    corrections = load(f'corrections_{args.year}.coffea')
+    years = ['2016','2017','2018']
+    for year in years:
+        corrections = load(f'corrections_{year}.coffea')
 
-    processor_instance = HZZProcessor(
-        year=args.year,
-        corrections=corrections,
-    )
+        processor_instance = HZZProcessor(
+            year=year,
+            corrections=corrections,
+        )
 
-    save(processor_instance, f'hzzProcessor_{args.year}.coffea')
+        save(processor_instance, f'hzzProcessor_{year}.coffea')

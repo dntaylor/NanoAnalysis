@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import json
 import argparse
 import glob
@@ -19,7 +20,7 @@ processor_map = {
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run coffea file')
-    parser.add_argument('analysis', type=str, choices=sorted(processor_map.keys()), help='The analysis')
+    parser.add_argument('processor', type=str, default=None, help='The analysis, either precompiled or a string in processor_map')
     parser.add_argument('--year', choices=['2016','2017','2018'], default='2018', help='Data taking year (default: %(default)s)')
     parser.add_argument('--output', default='hists.coffea', help='Output histogram filename (default: %(default)s)')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
@@ -64,14 +65,19 @@ if __name__ == '__main__':
     if args.test:
         print(fileset)
 
-    corrections = load(f'corrections_{args.year}.coffea')
 
-    # compiled wont pickle?
-    #processor_instance = load(args.processor)
-    processor_instance = processor_map[args.analysis](
-        year=args.year,
-        corrections=corrections,
-    )
+    if args.processor in processor_map:
+        corrections = load(f'corrections_{args.year}.coffea')
+        processor_instance = processor_map[args.processor](
+            year=args.year,
+            corrections=corrections,
+        )
+    elif os.path.exists(args.processor):
+        # compiled wont pickle?
+        processor_instance = load(args.processor)
+    else:
+        print(f'Cannot understand {args.processor}.')
+
     if args.dask:
         executor = processor.dask_executor
         executor_args = {'client': client, 'compression': 1, 'savemetrics': True, 'flatten': True,}
