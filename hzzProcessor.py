@@ -22,55 +22,10 @@ class HZZProcessor(processor.ProcessorABC):
     # will sync with
     # https://twiki.cern.ch/twiki/bin/viewauth/CMS/HiggsZZ4lRunIILegacy
     # to the best of NanoAOD ability
-    def __init__(self,year='2018'):
+    def __init__(self,year='2018',corrections={}):
         self._year = year
 
-        self._corrections = {}
-
-        # cross sections
-        # TODO: load
-        self._corrections['xsec'] = {}
-        # manually add the test samples
-        self._corrections['xsec']['DY'] = 6077.22
-        self._corrections['xsec']['HZZ'] = 43.92 * 2.64e-02	* (3.3658e-2*3)**2
-        self._corrections['xsec']['DoubleMuon'] = 1.
-
-        extractor = lookup_tools.extractor()
-        # electron
-        extractor.add_weight_sets([
-            # electron reco
-            f'electron_reco_ * data/scalefactors/electron/Ele_Reco_{self._year}.root',
-            # electron hzz id
-            f'electron_hzz_id_nogap_ * data/scalefactors/electron/ElectronSF_Legacy_{self._year}_NoGap.root',
-            f'electron_hzz_id_gap_ * data/scalefactors/electron/ElectronSF_Legacy_{self._year}_Gap.root',
-        ])
-        extractor.finalize()
-        evaluator = extractor.make_evaluator()
-
-        self._corrections['electron_reco'] = evaluator['electron_reco_EGamma_SF2D']
-        self._corrections['electron_hzz_id_nogap'] = evaluator['electron_hzz_id_nogap_EGamma_SF2D']
-        self._corrections['electron_hzz_id_gap'] = evaluator['electron_hzz_id_gap_EGamma_SF2D']
-
-        # pileup
-        with uproot.open(f'data/pileup/dataPileup{self._year}.root') as f:
-            norm = lambda x: x/x.sum()
-            edges = f['pileup'].edges
-            dataPileup = norm(f['pileup'].values)
-            dataPileupUp = norm(f['pileup_plus'].values)
-            dataPileupDown = norm(f['pileup_minus'].values)
-        with uproot.open(f'data/pileup/mcPileup{self._year}.root') as f:
-            mcPileup = f['pu_mc'].values
-        mask = (mcPileup>0)
-        pileupRatio = dataPileup.copy()
-        pileupRatioUp = dataPileupUp.copy()
-        pileupRatioDown = dataPileupDown.copy()
-        pileupRatio[mask] /= mcPileup[mask]
-        pileupRatioUp[mask] /= mcPileup[mask]
-        pileupRatioDown[mask] /= mcPileup[mask]
-
-        self._corrections[f'pileupWeight{self._year}'] = lookup_tools.dense_lookup.dense_lookup(pileupRatio, edges)
-        self._corrections[f'pileupWeight{self._year}Up'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioUp, edges)
-        self._corrections[f'pileupWeight{self._year}Down'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioDown, edges)
+        self._corrections = corrections
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
@@ -701,8 +656,11 @@ if __name__ == '__main__':
     parser.add_argument('year', choices=['2016', '2017', '2018'], default='2018', help='Data taking year')
     args = parser.parse_args()
 
+    corrections = load(f'corrections_{args.year}.coffea')
+
     processor_instance = HZZProcessor(
         year=args.year,
+        corrections=corrections,
     )
 
     save(processor_instance, f'hzzProcessor_{args.year}.coffea')

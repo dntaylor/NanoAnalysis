@@ -22,7 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('analysis', type=str, choices=sorted(processor_map.keys()), help='The analysis')
     parser.add_argument('--year', choices=['2016','2017','2018'], default='2018', help='Data taking year (default: %(default)s)')
     parser.add_argument('--output', default='hists.coffea', help='Output histogram filename (default: %(default)s)')
-    parser.add_argument('-j', '--workers', type=int, default=12, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
+    parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
     parser.add_argument('--dask', action='store_true', help='Use dask to distribute')
     parser.add_argument('--local', action='store_true', help='Use dask, but with local cluster')
     parser.add_argument('--test', action='store_true', help='Only process a few files')
@@ -37,7 +37,6 @@ if __name__ == '__main__':
 
     redirector = 'root://cmsxrootd.fnal.gov/'
     #if args.test: redirector = 'root://cmsxrootd.hep.wisc.edu/'
-    if args.test: redirector = '/hdfs'
 
     if args.test:
         fileset = {'DY': ['dy_2018.root'], 'HZZ': ['hzz_2018.root'], 'DoubleMuon': ['DoubleMuon_2018.root'],}
@@ -65,15 +64,20 @@ if __name__ == '__main__':
     if args.test:
         print(fileset)
 
+    corrections = load(f'corrections_{args.year}.coffea')
+
     # compiled wont pickle?
     #processor_instance = load(args.processor)
-    processor_instance = processor_map[args.analysis](year=args.year)
+    processor_instance = processor_map[args.analysis](
+        year=args.year,
+        corrections=corrections,
+    )
     if args.dask:
         executor = processor.dask_executor
         executor_args = {'client': client, 'compression': 1, 'savemetrics': True, 'flatten': True,}
     else:
-        #executor = processor.futures_executor
-        executor = processor.iterative_executor
+        executor = processor.futures_executor
+        #executor = processor.iterative_executor
         executor_args = {'workers': args.workers,'flatten': True,}
 
     accumulator = processor.run_uproot_job(
