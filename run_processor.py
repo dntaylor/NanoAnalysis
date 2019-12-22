@@ -21,7 +21,7 @@ processor_map = {
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run coffea file')
     parser.add_argument('processor', type=str, default=None, help='The analysis, either precompiled or a string in processor_map')
-    parser.add_argument('--year', choices=['2016','2017','2018'], default='2018', help='Data taking year (default: %(default)s)')
+    parser.add_argument('year', choices=['2016','2017','2018'], default='2018', help='Data taking year (default: %(default)s)')
     parser.add_argument('--output', default='hists.coffea', help='Output histogram filename (default: %(default)s)')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
     parser.add_argument('--dask', action='store_true', help='Use dask to distribute')
@@ -82,8 +82,10 @@ if __name__ == '__main__':
         executor = processor.dask_executor
         executor_args = {'client': client, 'compression': 1, 'savemetrics': True, 'flatten': True,}
     else:
-        executor = processor.futures_executor
-        #executor = processor.iterative_executor
+        if args.workers<=1:
+            executor = processor.iterative_executor
+        else:
+            executor = processor.futures_executor
         executor_args = {'workers': args.workers,'flatten': True,}
 
     accumulator = processor.run_uproot_job(
