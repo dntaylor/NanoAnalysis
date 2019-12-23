@@ -10,6 +10,7 @@ import numpy as np
 from coffea import hist, processor
 from coffea.util import load, save
 from dask.distributed import Client, LocalCluster
+from dask_jobqueue.htcondor import HTCondorCluster
 
 from hzzProcessor import HZZProcessor
 
@@ -22,6 +23,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run coffea file')
     parser.add_argument('processor', type=str, default=None, help='The analysis, either precompiled or a string in processor_map')
     parser.add_argument('year', choices=['2016','2017','2018'], default='2018', help='Data taking year (default: %(default)s)')
+    parser.add_argument('--fileset', default='', help='Fileset to process')
     parser.add_argument('--output', default='hists.coffea', help='Output histogram filename (default: %(default)s)')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
     parser.add_argument('--dask', action='store_true', help='Use dask to distribute')
@@ -34,12 +36,24 @@ if __name__ == '__main__':
             cluster = LocalCluster(args.workers,local_dir='/scratch/dntaylor/dask-worker-space')
             client = Client(cluster)
         else:
-            client = Client(os.environ['DASK_SCHEDULER'])
+            # try using dask cluster manager
+            cluster = HTCondorCluster(cores=1, memory="1GB", disk="2GB")
+            cluster.scale(jobs=20)  # ask for 10 jobs
+            client = Client(cluster)
+            # manually creating cluster
+            #client = Client(os.environ['DASK_SCHEDULER'])
 
-    redirector = 'root://cmsxrootd.fnal.gov/'
-    #if args.test: redirector = 'root://cmsxrootd.hep.wisc.edu/'
+    redirector = 'root://cms-xrd-global.cern.ch/'
+    #redirector = 'root://xrootd-cms.infn.it/'
+    #redirector = 'root://cmsxrootd.fnal.gov/'
+    #redirector = 'root://cmsxrootd.hep.wisc.edu/'
 
-    if args.test:
+    if args.fileset:
+        with open(args.fileset) as f:
+            fileset = json.load(f)
+            for dataset in fileset:
+                fileset[dataset] = [redirector+x if x.startswith('/store') else x for x in fileset[dataset]]
+    elif args.test:
         fileset = {'DY': ['dy_2018.root'], 'HZZ': ['hzz_2018.root'], 'DoubleMuon': ['DoubleMuon_2018.root'],}
     else:
         with open('data.json') as f:
@@ -51,7 +65,6 @@ if __name__ == '__main__':
         for s in fulldatafileset[args.year]:
             fileset[s] = []
             for d in fulldatafileset[args.year][s]['datasets']:
-                if args.test and 'Run2018A' not in d: continue
                 fileset[s] += [redirector+x for x in fulldatafileset[args.year][s]['files'][d]]
         for s in fullmcfileset[args.year]:
             fileset[s] = []
