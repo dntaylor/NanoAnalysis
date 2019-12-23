@@ -87,6 +87,7 @@ Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
         ],
         strategy=None,
         run_dir=os.path.join(log_dir,'runinfo'),
+        retries = 2, # in case of xrootd errors, wish we can restrict to only xrootd error
     )
 
     return htex
@@ -115,6 +116,7 @@ def parsl_local_config(args):
         ],
         strategy=None,
         run_dir=os.path.join(log_dir,'runinfo'),
+        retries = 2,
     ) 
     return htex
 
@@ -161,9 +163,9 @@ if __name__ == '__main__':
         parsl.load(htex)
             
 
-    redirector = 'root://cms-xrd-global.cern.ch/'
+    #redirector = 'root://cms-xrd-global.cern.ch/'
     #redirector = 'root://xrootd-cms.infn.it/'
-    #redirector = 'root://cmsxrootd.fnal.gov/'
+    redirector = 'root://cmsxrootd.fnal.gov/'
     #redirector = 'root://cmsxrootd.hep.wisc.edu/'
 
     if args.fileset:
@@ -210,6 +212,11 @@ if __name__ == '__main__':
     elif args.parsl:
         executor = processor.parsl_executor
         executor_args = {'flatten': True,}
+
+        # parsl is way too verbose
+        if not args.debug:
+            for name in logging.root.manager.loggerDict:
+                if 'parsl' in name or 'interchange' in name: logging.getLogger(name).setLevel(logging.WARNING)
     else:
         if args.workers<=1:
             executor = processor.iterative_executor

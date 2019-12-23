@@ -519,6 +519,8 @@ class HZZProcessor(processor.ProcessorABC):
         # im sure there is a better way, but for now just do this
         def get_lepton_values(zl,key):
             val = np.zeros_like(zl.flatten(),dtype=float)
+            if len(val)==0:
+                return JaggedArray.fromoffsets(zl.offsets,val) 
             for i in range(4):
                 mask = (str(i)==zl.flatten())
                 if key=='pt':
