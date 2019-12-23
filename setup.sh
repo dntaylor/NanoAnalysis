@@ -6,7 +6,7 @@ NAME=columnar
 python -m venv --copies $NAME
 source $NAME/bin/activate
 python -m pip install setuptools pip --upgrade
-python -m pip install dask distributed bokeh htcondor --upgrade
+python -m pip install dask distributed bokeh htcondor dask-jobqueue parsl --upgrade
 python -m pip install https://github.com/CoffeaTeam/coffea/archive/master.zip
 
 sed -i '40s/.*/VIRTUAL_ENV="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}" )")" \&\& pwd)"/' $NAME/bin/activate

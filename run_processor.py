@@ -3,14 +3,13 @@ import os
 import json
 import argparse
 import glob
+import logging
 from tqdm import tqdm
 
 import uproot
 import numpy as np
 from coffea import hist, processor
 from coffea.util import load, save
-from dask.distributed import Client, LocalCluster
-from dask_jobqueue.htcondor import HTCondorCluster
 
 from hzzProcessor import HZZProcessor
 
@@ -26,22 +25,58 @@ if __name__ == '__main__':
     parser.add_argument('--fileset', default='', help='Fileset to process')
     parser.add_argument('--output', default='hists.coffea', help='Output histogram filename (default: %(default)s)')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
-    parser.add_argument('--dask', action='store_true', help='Use dask to distribute')
-    parser.add_argument('--local', action='store_true', help='Use dask, but with local cluster')
+    scheduler = parser.add_mutually_exclusive_group()
+    scheduler.add_argument('--dask', action='store_true', help='Use dask to distribute')
+    scheduler.add_argument('--parsl', action='store_true', help='Use parsl to distribute')
+    parser.add_argument('--condor', action='store_true', help='Use distributed, but with condor')
     parser.add_argument('--test', action='store_true', help='Only process a few files')
     args = parser.parse_args()
 
     if args.dask:
-        if args.local:
-            cluster = LocalCluster(args.workers,local_dir='/scratch/dntaylor/dask-worker-space')
-            client = Client(cluster)
-        else:
+        from dask.distributed import Client, LocalCluster
+        if args.condor:
             # try using dask cluster manager
+            # doesn't work yet
+            from dask_jobqueue.htcondor import HTCondorCluster
             cluster = HTCondorCluster(cores=1, memory="1GB", disk="2GB")
-            cluster.scale(jobs=20)  # ask for 10 jobs
+            cluster.scale(jobs=args.workers)  # ask for 10 jobs
             client = Client(cluster)
             # manually creating cluster
             #client = Client(os.environ['DASK_SCHEDULER'])
+        else:
+            cluster = LocalCluster(args.workers,local_dir='/scratch/dntaylor/dask-worker-space')
+            client = Client(cluster)
+
+    if args.parsl:
+        import parsl
+        if args.condor:
+            from processor.parsl.condor_config import condor_config
+            htex = condor_config()
+        else:
+            from parsl.providers import LocalProvider
+            from parsl.channels import LocalChannel
+            from parsl.config import Config
+            from parsl.executors import HighThroughputExecutor
+            htex = Config(
+               executors=[
+                   HighThroughputExecutor(
+                       label="coffea_parsl_default",
+                       cores_per_worker=1,
+                       max_workers=args.workers,
+                       provider=LocalProvider(
+                           channel=LocalChannel(),
+                           init_blocks=1,
+                           max_blocks=1,
+                       ),
+                   )
+               ],
+               strategy=None,
+           ) 
+        # parsl is way too verbose
+        for name in logging.root.manager.loggerDict:
+            if 'parsl' in name or name=='interchange': logging.getLogger(name).setLevel(logging.WARNING)
+        parsl.load(htex)
+            
 
     redirector = 'root://cms-xrd-global.cern.ch/'
     #redirector = 'root://xrootd-cms.infn.it/'
@@ -71,12 +106,7 @@ if __name__ == '__main__':
             for d in fullmcfileset[args.year][s]['datasets']:
                 fileset[s] += [redirector+x for x in fullmcfileset[args.year][s]['files'][d]]
 
-    #if args.test:
-    #    for s in fileset: fileset[s] = fileset[s][:1]
-
-    print('Will process: ',list(fileset.keys()))
-    if args.test:
-        print(fileset)
+    logging.info('Will process: '+' '.join(list(fileset.keys())))
 
 
     if args.processor in processor_map:
@@ -89,11 +119,14 @@ if __name__ == '__main__':
         # compiled wont pickle?
         processor_instance = load(args.processor)
     else:
-        print(f'Cannot understand {args.processor}.')
+        logging.warning(f'Cannot understand {args.processor}.')
 
     if args.dask:
         executor = processor.dask_executor
-        executor_args = {'client': client, 'compression': 1, 'savemetrics': True, 'flatten': True,}
+        executor_args = {'client': client, 'savemetrics': True, 'flatten': True,}
+    elif args.parsl:
+        executor = processor.parsl_executor
+        executor_args = {'flatten': True,}
     else:
         if args.workers<=1:
             executor = processor.iterative_executor
