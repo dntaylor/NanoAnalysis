@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import getpass
 import json
 import argparse
 import glob
@@ -13,10 +14,106 @@ from coffea.util import load, save
 
 from hzzProcessor import HZZProcessor
 
+UID = os.getuid()
+UNAME = getpass.getuser()
+
 processor_map = {
     'HZZ': HZZProcessor,
 }
 
+
+
+
+
+def parsl_condor_config(args):
+    from parsl.providers import CondorProvider
+    from parsl.channels import LocalChannel
+    from parsl.config import Config
+    from parsl.executors import HighThroughputExecutor
+    from parsl.addresses import address_by_hostname
+
+    x509_proxy = f'x509up_u{UID}'
+    grid_proxy_dir = '/tmp'
+
+    cores_per_job = 1
+    mem_per_core = 2000
+    mem_request = mem_per_core * cores_per_job
+    total_workers = args.workers
+    max_workers = 10*args.workers
+    htex_label='coffea_parsl_condor_htex'
+    wrk_init=None
+    condor_cfg=None
+    log_dir = 'parsl_logs'
+
+    wrk_init = f'''
+echo "Setting up environment"
+tar -zxf columnar.tar.gz
+source columnar/bin/activate
+export PATH=columnar/bin:$PATH
+export PYTHONPATH=columnar/lib/python3.6/site-packages:$PYTHONPATH
+export X509_USER_PROXY={x509_proxy}
+echo "Environment ready"
+mkdir -p {htex_label}
+'''
+
+    # requirements for T2_US_Wisconsin (HAS_CMS_HDFS forces to run a T2 node not CHTC)
+    condor_cfg = f'''
+transfer_output_files   = {htex_label}
+RequestMemory           = {mem_request}
+RequestCpus             = {cores_per_job}
++RequiresCVMFS          = True
+Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
+'''
+
+    xfer_files = ['columnar.tar.gz', os.path.join(grid_proxy_dir, x509_proxy)]
+
+    htex = Config(
+        executors=[
+            HighThroughputExecutor(
+                label=htex_label,
+                address=address_by_hostname(),
+                prefetch_capacity=0,
+                cores_per_worker=1,
+                max_workers=cores_per_job,
+                worker_logdir_root=log_dir,
+                provider=CondorProvider(
+                    channel=LocalChannel(),
+                    init_blocks=total_workers,
+                    max_blocks=max_workers,
+                    nodes_per_block=1,
+                    worker_init=wrk_init,
+                    transfer_input_files=xfer_files,
+                    scheduler_options=condor_cfg
+                ),
+            )
+        ],
+        strategy=None,
+        run_dir=os.path.join(log_dir,'runinfo'),
+    )
+
+    return htex
+
+def parsl_local_config(args):
+    from parsl.providers import LocalProvider
+    from parsl.channels import LocalChannel
+    from parsl.config import Config
+    from parsl.executors import HighThroughputExecutor
+    htex = Config(
+        executors=[
+            HighThroughputExecutor(
+                label="coffea_parsl_default",
+                cores_per_worker=1,
+                max_workers=args.workers,
+                provider=LocalProvider(
+                    channel=LocalChannel(),
+                    init_blocks=1,
+                    max_blocks=1,
+                ),
+            )
+        ],
+        strategy=None,
+    ) 
+    return htex
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run coffea file')
@@ -30,6 +127,7 @@ if __name__ == '__main__':
     scheduler.add_argument('--parsl', action='store_true', help='Use parsl to distribute')
     parser.add_argument('--condor', action='store_true', help='Use distributed, but with condor')
     parser.add_argument('--test', action='store_true', help='Only process a few files')
+    parser.add_argument('--debug', action='store_true', help='Add debug verbosity')
     args = parser.parse_args()
 
     if args.dask:
@@ -50,31 +148,13 @@ if __name__ == '__main__':
     if args.parsl:
         import parsl
         if args.condor:
-            from processor.parsl.condor_config import condor_config
-            htex = condor_config()
+            htex = parsl_condor_config(args)
         else:
-            from parsl.providers import LocalProvider
-            from parsl.channels import LocalChannel
-            from parsl.config import Config
-            from parsl.executors import HighThroughputExecutor
-            htex = Config(
-               executors=[
-                   HighThroughputExecutor(
-                       label="coffea_parsl_default",
-                       cores_per_worker=1,
-                       max_workers=args.workers,
-                       provider=LocalProvider(
-                           channel=LocalChannel(),
-                           init_blocks=1,
-                           max_blocks=1,
-                       ),
-                   )
-               ],
-               strategy=None,
-           ) 
+            htex = parsl_local_config(args)
         # parsl is way too verbose
-        for name in logging.root.manager.loggerDict:
-            if 'parsl' in name or name=='interchange': logging.getLogger(name).setLevel(logging.WARNING)
+        if not args.debug:
+            for name in logging.root.manager.loggerDict:
+                if 'parsl' in name: logging.getLogger(name).setLevel(logging.WARNING)
         parsl.load(htex)
             
 

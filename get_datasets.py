@@ -1,27 +1,10 @@
 import os
 import json
 import subprocess
+from utilities import load, dump, get_das
 
 
 reload = True # requery everything
-
-def run_command(command):
-    return subprocess.Popen(command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT).communicate()[0]
-
-def get_das(query):
-    command = 'dasgoclient -query "{}"'.format(query)
-    return [line.decode('utf-8') for line in run_command(command).split()]
-
-def load(fname):
-    jname = '{}.json'.format(fname)
-    if not os.path.exists(jname): return {}
-    with open(jname) as f:
-        return json.load(f)
-
-def dump(fname,content):
-    jname = '{}.json'.format(fname)
-    with open(jname,'w') as f:
-        json.dump(content,f, indent=4, sort_keys=True)
 
 # NanoAODv6
 nano_tag = 'Nano25Oct2019'

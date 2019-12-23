@@ -14,4 +14,3 @@ sed -i '1s/#!.*python$/#!\/usr\/bin\/env python/' $NAME/bin/*
 sed -i '2a source /cvmfs/sft.cern.ch/lcg/views/LCG_96python3/x86_64-centos7-gcc8-opt/setup.sh' $NAME/bin/activate
 
 tar -zcf ${NAME}.tar.gz $NAME
-mkdir -p /nfs_scratch/dntaylor/dask_logs
