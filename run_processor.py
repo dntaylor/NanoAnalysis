@@ -157,7 +157,7 @@ if __name__ == '__main__':
         # parsl is way too verbose
         if not args.debug:
             for name in logging.root.manager.loggerDict:
-                if 'parsl' in name: logging.getLogger(name).setLevel(logging.WARNING)
+                if 'parsl' in name or 'interchange' in name: logging.getLogger(name).setLevel(logging.WARNING)
         parsl.load(htex)
             
 

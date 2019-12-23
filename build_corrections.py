@@ -3,13 +3,13 @@ import numpy as np
 import uproot
 from coffea import hist, lookup_tools
 from coffea.util import load, save
+from xsec import xsec
 
 def save_corrections(year):
     corrections = {}
     
     # cross sections
-    # TODO: load
-    corrections['xsec'] = {}
+    corrections['xsec'] = xsec
     # manually add the test samples
     corrections['xsec']['DY'] = 6077.22
     corrections['xsec']['HZZ'] = 43.92 * 2.64e-02 * (3.3658e-2*3)**2
