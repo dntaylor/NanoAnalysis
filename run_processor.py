@@ -41,11 +41,9 @@ def parsl_condor_config(args):
     total_workers = args.workers
     max_workers = 10*args.workers
     htex_label='coffea_parsl_condor_htex'
-    wrk_init=None
-    condor_cfg=None
     log_dir = 'parsl_logs'
 
-    wrk_init = f'''
+    worker_init = f'''
 echo "Setting up environment"
 tar -zxf columnar.tar.gz
 source columnar/bin/activate
@@ -57,7 +55,7 @@ mkdir -p {htex_label}
 '''
 
     # requirements for T2_US_Wisconsin (HAS_CMS_HDFS forces to run a T2 node not CHTC)
-    condor_cfg = f'''
+    scheduler_options = f'''
 transfer_output_files   = {htex_label}
 RequestMemory           = {mem_request}
 RequestCpus             = {cores_per_job}
@@ -65,7 +63,7 @@ RequestCpus             = {cores_per_job}
 Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
 '''
 
-    xfer_files = ['columnar.tar.gz', os.path.join(grid_proxy_dir, x509_proxy)]
+    transfer_input_files = ['columnar.tar.gz', os.path.join(grid_proxy_dir, x509_proxy)]
 
     htex = Config(
         executors=[
@@ -81,9 +79,9 @@ Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
                     init_blocks=total_workers,
                     max_blocks=max_workers,
                     nodes_per_block=1,
-                    worker_init=wrk_init,
-                    transfer_input_files=xfer_files,
-                    scheduler_options=condor_cfg
+                    worker_init=worker_init,
+                    transfer_input_files=transfer_input_files,
+                    scheduler_options=scheduler_options
                 ),
             )
         ],
@@ -98,12 +96,16 @@ def parsl_local_config(args):
     from parsl.channels import LocalChannel
     from parsl.config import Config
     from parsl.executors import HighThroughputExecutor
+
+    log_dir = 'parsl_logs'
+
     htex = Config(
         executors=[
             HighThroughputExecutor(
                 label="coffea_parsl_default",
                 cores_per_worker=1,
                 max_workers=args.workers,
+                worker_logdir_root=log_dir,
                 provider=LocalProvider(
                     channel=LocalChannel(),
                     init_blocks=1,
@@ -112,6 +114,7 @@ def parsl_local_config(args):
             )
         ],
         strategy=None,
+        run_dir=os.path.join(log_dir,'runinfo'),
     ) 
     return htex
 
