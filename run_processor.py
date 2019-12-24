@@ -7,6 +7,11 @@ import glob
 import logging
 from tqdm import tqdm
 
+logging.basicConfig(filename='processor.log', level=logging.INFO)
+rootLogger = logging.getLogger()
+logging.captureWarnings(True)
+
+
 import uproot
 import numpy as np
 from coffea import hist, processor
@@ -51,12 +56,11 @@ export PATH=columnar/bin:$PATH
 export PYTHONPATH=columnar/lib/python3.6/site-packages:$PYTHONPATH
 export X509_USER_PROXY={x509_proxy}
 echo "Environment ready"
-mkdir -p {htex_label}
 '''
 
     # requirements for T2_US_Wisconsin (HAS_CMS_HDFS forces to run a T2 node not CHTC)
     scheduler_options = f'''
-transfer_output_files   = {htex_label}
+transfer_output_files   = {log_dir}/{htex_label}
 RequestMemory           = {mem_request}
 RequestCpus             = {cores_per_job}
 +RequiresCVMFS          = True
@@ -87,7 +91,7 @@ Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
         ],
         strategy=None,
         run_dir=os.path.join(log_dir,'runinfo'),
-        retries = 2, # in case of xrootd errors, wish we can restrict to only xrootd error
+        #retries = 2, # in case of xrootd errors, wish we can restrict to only xrootd error
     )
 
     return htex
@@ -116,7 +120,7 @@ def parsl_local_config(args):
         ],
         strategy=None,
         run_dir=os.path.join(log_dir,'runinfo'),
-        retries = 2,
+        #retries = 2,
     ) 
     return htex
 
@@ -156,10 +160,6 @@ if __name__ == '__main__':
             htex = parsl_condor_config(args)
         else:
             htex = parsl_local_config(args)
-        # parsl is way too verbose
-        if not args.debug:
-            for name in logging.root.manager.loggerDict:
-                if 'parsl' in name or 'interchange' in name: logging.getLogger(name).setLevel(logging.WARNING)
         parsl.load(htex)
             
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
             for d in fullmcfileset[args.year][s]['datasets']:
                 fileset[s] += [redirector+x for x in fullmcfileset[args.year][s]['files'][d]]
 
-    logging.info('Will process: '+' '.join(list(fileset.keys())))
+    rootLogger.info('Will process: '+' '.join(list(fileset.keys())))
 
 
     if args.processor in processor_map:
@@ -204,25 +204,20 @@ if __name__ == '__main__':
         # compiled wont pickle?
         processor_instance = load(args.processor)
     else:
-        logging.warning(f'Cannot understand {args.processor}.')
+        rootLogger.warning(f'Cannot understand {args.processor}.')
 
+    executor_args = {'savemetrics': True, 'flatten':True, 'retries': 1, 'skipbadfiles': True, 'timeout':120,}
     if args.dask:
         executor = processor.dask_executor
-        executor_args = {'client': client, 'savemetrics': True, 'flatten': True,}
+        executor_args['client'] = client
     elif args.parsl:
         executor = processor.parsl_executor
-        executor_args = {'flatten': True,}
-
-        # parsl is way too verbose
-        if not args.debug:
-            for name in logging.root.manager.loggerDict:
-                if 'parsl' in name or 'interchange' in name: logging.getLogger(name).setLevel(logging.WARNING)
     else:
         if args.workers<=1:
             executor = processor.iterative_executor
         else:
             executor = processor.futures_executor
-        executor_args = {'workers': args.workers,'flatten': True,}
+        executor_args['workers'] = args.workers
 
     accumulator = processor.run_uproot_job(
         fileset,
@@ -230,7 +225,7 @@ if __name__ == '__main__':
         processor_instance=processor_instance,
         executor=executor,
         executor_args=executor_args,
-        chunksize=200000,
+        chunksize=300000, # 200000 good for condor 1000 MB, request 2000 MB/core
     )
     
     save(accumulator, args.output)
