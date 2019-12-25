@@ -43,8 +43,9 @@ def parsl_condor_config(args):
     cores_per_job = 1
     mem_per_core = 2000
     mem_request = mem_per_core * cores_per_job
-    total_workers = args.workers
-    max_workers = 10*args.workers
+    init_blocks = args.workers
+    min_blocks = args.workers
+    max_blocks = 40*args.workers
     htex_label='coffea_parsl_condor_htex'
     log_dir = 'parsl_logs'
 
@@ -65,6 +66,7 @@ RequestMemory           = {mem_request}
 RequestCpus             = {cores_per_job}
 +RequiresCVMFS          = True
 Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
+priority                = 10
 '''
 
     transfer_input_files = ['columnar.tar.gz', os.path.join(grid_proxy_dir, x509_proxy)]
@@ -80,8 +82,9 @@ Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
                 worker_logdir_root=log_dir,
                 provider=CondorProvider(
                     channel=LocalChannel(),
-                    init_blocks=total_workers,
-                    max_blocks=max_workers,
+                    init_blocks=init_blocks,
+                    min_blocks=min_blocks,
+                    max_blocks=max_blocks,
                     nodes_per_block=1,
                     worker_init=worker_init,
                     transfer_input_files=transfer_input_files,
@@ -89,9 +92,9 @@ Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
                 ),
             )
         ],
-        strategy=None,
+        strategy='simple',
         run_dir=os.path.join(log_dir,'runinfo'),
-        #retries = 2, # in case of xrootd errors, wish we can restrict to only xrootd error
+        retries = 2, # in case of xrootd errors, wish we can restrict to only xrootd error
     )
 
     return htex
@@ -120,7 +123,7 @@ def parsl_local_config(args):
         ],
         strategy=None,
         run_dir=os.path.join(log_dir,'runinfo'),
-        #retries = 2,
+        retries = 2,
     ) 
     return htex
 
@@ -146,7 +149,7 @@ if __name__ == '__main__':
             # doesn't work yet
             from dask_jobqueue.htcondor import HTCondorCluster
             cluster = HTCondorCluster(cores=1, memory="1GB", disk="2GB")
-            cluster.scale(jobs=args.workers)  # ask for 10 jobs
+            cluster.scale(jobs=args.workers)
             client = Client(cluster)
             # manually creating cluster
             #client = Client(os.environ['DASK_SCHEDULER'])
@@ -206,7 +209,7 @@ if __name__ == '__main__':
     else:
         rootLogger.warning(f'Cannot understand {args.processor}.')
 
-    executor_args = {'savemetrics': True, 'flatten':True, 'retries': 1, 'skipbadfiles': True, 'timeout':120,}
+    executor_args = {'savemetrics': True, 'flatten':True, 'retries': 1, 'skipbadfiles': True, 'xrootdtimeout':120,}
     if args.dask:
         executor = processor.dask_executor
         executor_args['client'] = client
