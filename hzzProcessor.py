@@ -171,12 +171,12 @@ class HZZProcessor(processor.ProcessorABC):
         if self._year=='2016':
             triggerPaths['MuonEG'] = [
                 "HLT_Mu8_TrkIsoVVL_Ele17_CaloIdL_TrackIdL_IsoVL",
-                #"HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
                 "HLT_Mu17_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
-                #"HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
-                #"HLT_Mu23_TrkIsoVVL_Ele8_CaloIdL_TrackIdL_IsoVL",
+                "HLT_Mu23_TrkIsoVVL_Ele8_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Mu8_DiEle12_CaloIdL_TrackIdL",
                 "HLT_DiMu9_Ele9_CaloIdL_TrackIdL",
             ]
@@ -279,10 +279,14 @@ class HZZProcessor(processor.ProcessorABC):
                 else:
                     triggersToVeto += [p]
 
+        # TODO: no guarantee the trigger is in every dataset?
+        # for now, check, but should find out
         result = np.zeros_like(df['event'],dtype=bool)
         for p in triggersToAccept:
+            if p not in df: continue
             result = ((result) | (df[p]))
         for p in triggersToVeto:
+            if p not in df: continue
             result = ((result) & (~df[p]))
 
         df['passHLT'] = result
