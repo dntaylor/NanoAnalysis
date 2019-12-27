@@ -122,7 +122,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run coffea file')
     parser.add_argument('processor', type=str, default=None, help='The analysis, a precompiled processor')
     parser.add_argument('--fileset', default='', help='Fileset to process')
-    parser.add_argument('--output', default='', help='Output histogram filename (defaults to "hists_"+processor)')
+    parser.add_argument('--output', default='', help='Output histogram filename')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
     scheduler = parser.add_mutually_exclusive_group()
     scheduler.add_argument('--dask', action='store_true', help='Use dask to distribute')
