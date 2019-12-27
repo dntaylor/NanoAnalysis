@@ -145,6 +145,7 @@ xsec = {
     # values are N3LO 
     'GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV709_pythia8'             : get_higgs('ggH','ZZ',True),
     'GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8'            : get_higgs('ggH','ZZ',True),
+    'GluGluHToZZTo4L_M125_13TeV_powheg2_minloHJJ_JHUgenV6_pythia8'      : get_higgs('ggH','ZZ',True),
     'VBF_HToZZTo4L_M125_13TeV_powheg2_JHUGenV709_pythia8'               : get_higgs('VBF','ZZ',True),
     'VBF_HToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8'              : get_higgs('VBF','ZZ',True),
     'WplusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV709_pythia8'  : get_higgs('WpH','ZZ',True),
@@ -153,6 +154,7 @@ xsec = {
     'WminusH_HToZZTo4L_M125_13TeV_powheg2-minlo-HWJ_JHUGenV7011_pythia8': get_higgs('WmH','ZZ',True),
     'ZH_HToZZ_4LFilter_M125_13TeV_powheg2-minlo-HZJ_JHUGenV709_pythia8' : get_higgs('ZH','ZZ',True),
     'ZH_HToZZ_4LFilter_M125_13TeV_powheg2-minlo-HZJ_JHUGenV7011_pythia8': get_higgs('ZH','ZZ',True),
+    'GluGluToZH_HToZZTo4L_M125_13TeV_JHUGenV723_pythia8'                : get_higgs('ZH','ZZ',True),
     'ttH_HToZZ_4LFilter_M125_13TeV_powheg2_JHUGenV709_pythia'           : get_higgs('ttH','ZZ',True),
     'ttH_HToZZ_4LFilter_M125_13TeV_powheg2_JHUGenV7011_pythia'          : get_higgs('ttH','ZZ',True),
     'bbH_HToZZTo4L_M125_13TeV_JHUgenV702_pythia8'                       : get_higgs('bbH','ZZ',True),

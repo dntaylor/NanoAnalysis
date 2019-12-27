@@ -17,17 +17,8 @@ import numpy as np
 from coffea import hist, processor
 from coffea.util import load, save
 
-from hzzProcessor import HZZProcessor
-
 UID = os.getuid()
 UNAME = getpass.getuser()
-
-processor_map = {
-    'HZZ': HZZProcessor,
-}
-
-
-
 
 
 def parsl_condor_config(args):
@@ -94,7 +85,7 @@ priority                = 10
         ],
         strategy='simple',
         run_dir=os.path.join(log_dir,'runinfo'),
-        retries = 2, # in case of xrootd errors, wish we can restrict to only xrootd error
+        #retries = 2,
     )
 
     return htex
@@ -123,16 +114,15 @@ def parsl_local_config(args):
         ],
         strategy=None,
         run_dir=os.path.join(log_dir,'runinfo'),
-        retries = 2,
+        #retries = 2,
     ) 
     return htex
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run coffea file')
-    parser.add_argument('processor', type=str, default=None, help='The analysis, either precompiled or a string in processor_map')
-    parser.add_argument('year', choices=['2016','2017','2018'], default='2018', help='Data taking year (default: %(default)s)')
+    parser.add_argument('processor', type=str, default=None, help='The analysis, a precompiled processor')
     parser.add_argument('--fileset', default='', help='Fileset to process')
-    parser.add_argument('--output', default='hists.coffea', help='Output histogram filename (default: %(default)s)')
+    parser.add_argument('--output', default='', help='Output histogram filename (defaults to "hists_"+processor)')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
     scheduler = parser.add_mutually_exclusive_group()
     scheduler.add_argument('--dask', action='store_true', help='Use dask to distribute')
@@ -141,6 +131,10 @@ if __name__ == '__main__':
     parser.add_argument('--test', action='store_true', help='Only process a few files')
     parser.add_argument('--debug', action='store_true', help='Add debug verbosity')
     args = parser.parse_args()
+
+    if not args.output:
+        args.output = 'hists_' + os.path.splitext(os.path.basename(args.processor))[0]\
+                      + '_' + os.path.splitext(os.path.basename(args.fileset))[0] + '.coffea'
 
     if args.dask:
         from dask.distributed import Client, LocalCluster
@@ -178,33 +172,10 @@ if __name__ == '__main__':
                 fileset[dataset] = [redirector+x if x.startswith('/store') else x for x in fileset[dataset]]
     elif args.test:
         fileset = {'DY': ['dy_2018.root'], 'HZZ': ['hzz_2018.root'], 'DoubleMuon': ['DoubleMuon_2018.root'],}
-    else:
-        with open('data.json') as f:
-            fulldatafileset = json.load(f)
-        with open('mc.json') as f:
-            fullmcfileset = json.load(f)
-
-        fileset = {}
-        for s in fulldatafileset[args.year]:
-            fileset[s] = []
-            for d in fulldatafileset[args.year][s]['datasets']:
-                fileset[s] += [redirector+x for x in fulldatafileset[args.year][s]['files'][d]]
-        for s in fullmcfileset[args.year]:
-            fileset[s] = []
-            for d in fullmcfileset[args.year][s]['datasets']:
-                fileset[s] += [redirector+x for x in fullmcfileset[args.year][s]['files'][d]]
 
     rootLogger.info('Will process: '+' '.join(list(fileset.keys())))
 
-
-    if args.processor in processor_map:
-        corrections = load(f'corrections_{args.year}.coffea')
-        processor_instance = processor_map[args.processor](
-            year=args.year,
-            corrections=corrections,
-        )
-    elif os.path.exists(args.processor):
-        # compiled wont pickle?
+    if os.path.exists(args.processor):
         processor_instance = load(args.processor)
     else:
         rootLogger.warning(f'Cannot understand {args.processor}.')

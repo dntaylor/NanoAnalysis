@@ -163,7 +163,7 @@ class HZZProcessor(processor.ProcessorABC):
             triggerPaths['DoubleEG'] = [
                 "HLT_Ele17_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
                 "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
-                "HLT_DoubleEle33_CaloIdL_GsfTrkIdVL",
+                "HLT_DoubleEle33_CaloIdL_GsfTrkIdVL_MW",
                 "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
             ]
 
@@ -171,12 +171,12 @@ class HZZProcessor(processor.ProcessorABC):
         if self._year=='2016':
             triggerPaths['MuonEG'] = [
                 "HLT_Mu8_TrkIsoVVL_Ele17_CaloIdL_TrackIdL_IsoVL",
-                "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL",
+                #"HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Mu8_TrkIsoVVL_Ele23_CaloIdL_TrackIdL_IsoVL_DZ",
                 "HLT_Mu17_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
-                "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
+                #"HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Mu23_TrkIsoVVL_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
-                "HLT_Mu23_TrkIsoVVL_Ele8_CaloIdL_TrackIdL_IsoVL",
+                #"HLT_Mu23_TrkIsoVVL_Ele8_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Mu8_DiEle12_CaloIdL_TrackIdL",
                 "HLT_DiMu9_Ele9_CaloIdL_TrackIdL",
             ]
