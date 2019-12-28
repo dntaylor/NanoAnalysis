@@ -1,122 +1,22 @@
 #!/usr/bin/env python
 import os
-import getpass
 import json
 import argparse
 import glob
 import logging
-from tqdm import tqdm
 
 logging.basicConfig(filename='processor.log', level=logging.INFO)
 rootLogger = logging.getLogger()
 logging.captureWarnings(True)
-
 
 import uproot
 import numpy as np
 from coffea import hist, processor
 from coffea.util import load, save
 
-UID = os.getuid()
-UNAME = getpass.getuser()
+from utilities import python_mkdir
 
-
-def parsl_condor_config(args):
-    from parsl.providers import CondorProvider
-    from parsl.channels import LocalChannel
-    from parsl.config import Config
-    from parsl.executors import HighThroughputExecutor
-    from parsl.addresses import address_by_hostname
-
-    x509_proxy = f'x509up_u{UID}'
-    grid_proxy_dir = '/tmp'
-
-    cores_per_job = 1
-    mem_per_core = 2000
-    mem_request = mem_per_core * cores_per_job
-    init_blocks = args.workers
-    min_blocks = args.workers
-    max_blocks = 40*args.workers
-    htex_label='coffea_parsl_condor_htex'
-    log_dir = 'parsl_logs'
-
-    worker_init = f'''
-echo "Setting up environment"
-tar -zxf columnar.tar.gz
-source columnar/bin/activate
-export PATH=columnar/bin:$PATH
-export PYTHONPATH=columnar/lib/python3.6/site-packages:$PYTHONPATH
-export X509_USER_PROXY={x509_proxy}
-echo "Environment ready"
-'''
-
-    # requirements for T2_US_Wisconsin (HAS_CMS_HDFS forces to run a T2 node not CHTC)
-    scheduler_options = f'''
-transfer_output_files   = {log_dir}/{htex_label}
-RequestMemory           = {mem_request}
-RequestCpus             = {cores_per_job}
-+RequiresCVMFS          = True
-Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
-priority                = 10
-'''
-
-    transfer_input_files = ['columnar.tar.gz', os.path.join(grid_proxy_dir, x509_proxy)]
-
-    htex = Config(
-        executors=[
-            HighThroughputExecutor(
-                label=htex_label,
-                address=address_by_hostname(),
-                prefetch_capacity=0,
-                cores_per_worker=1,
-                max_workers=cores_per_job,
-                worker_logdir_root=log_dir,
-                provider=CondorProvider(
-                    channel=LocalChannel(),
-                    init_blocks=init_blocks,
-                    min_blocks=min_blocks,
-                    max_blocks=max_blocks,
-                    nodes_per_block=1,
-                    worker_init=worker_init,
-                    transfer_input_files=transfer_input_files,
-                    scheduler_options=scheduler_options
-                ),
-            )
-        ],
-        strategy='simple',
-        run_dir=os.path.join(log_dir,'runinfo'),
-        #retries = 2,
-    )
-
-    return htex
-
-def parsl_local_config(args):
-    from parsl.providers import LocalProvider
-    from parsl.channels import LocalChannel
-    from parsl.config import Config
-    from parsl.executors import HighThroughputExecutor
-
-    log_dir = 'parsl_logs'
-
-    htex = Config(
-        executors=[
-            HighThroughputExecutor(
-                label="coffea_parsl_default",
-                cores_per_worker=1,
-                max_workers=args.workers,
-                worker_logdir_root=log_dir,
-                provider=LocalProvider(
-                    channel=LocalChannel(),
-                    init_blocks=1,
-                    max_blocks=1,
-                ),
-            )
-        ],
-        strategy=None,
-        run_dir=os.path.join(log_dir,'runinfo'),
-        #retries = 2,
-    ) 
-    return htex
+from parsl_config import parsl_condor_config, parsl_local_config
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run coffea file')
@@ -133,8 +33,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if not args.output:
-        args.output = 'hists_' + os.path.splitext(os.path.basename(args.processor))[0]\
-                      + '_' + os.path.splitext(os.path.basename(args.fileset))[0] + '.coffea'
+        args.output = 'hists/' + os.path.splitext(os.path.basename(args.processor))[0]\
+                      + '/' + os.path.splitext(os.path.basename(args.fileset))[0] + '.coffea'
+    python_mkdir(os.path.dirname(args.output))
 
     if args.dask:
         from dask.distributed import Client, LocalCluster
@@ -154,9 +55,9 @@ if __name__ == '__main__':
     if args.parsl:
         import parsl
         if args.condor:
-            htex = parsl_condor_config(args)
+            htex = parsl_condor_config(workers=args.workers)
         else:
-            htex = parsl_local_config(args)
+            htex = parsl_local_config(workers=args.workers)
         parsl.load(htex)
             
 
