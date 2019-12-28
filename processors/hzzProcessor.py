@@ -661,11 +661,11 @@ if __name__ == '__main__':
 
     years = ['2016','2017','2018']
     for year in years:
-        corrections = load(f'corrections_{year}.coffea')
+        corrections = load(f'corrections/corrections_{year}.coffea')
 
         processor_instance = HZZProcessor(
             year=year,
             corrections=corrections,
         )
 
-        save(processor_instance, f'hzzProcessor_{year}.coffea')
+        save(processor_instance, f'processors/hzzProcessor_{year}.coffea')
