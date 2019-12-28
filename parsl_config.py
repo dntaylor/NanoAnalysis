@@ -90,18 +90,21 @@ priority                = 10
                     scheduler_options=scheduler_options
                 ),
             ),
+            # TODO: works, but really isn't helpful since half of the tasks get shipped to the condor
+            # executor and don't flock back when the local executor is empty
+            # an alternative could be to preprocess locally and process on the grid
             # add a local executor so stuff starts fast
-            HighThroughputExecutor(
-                label="coffea_parsl_default",
-                cores_per_worker=1,
-                max_workers=1, # TODO: multicore local?
-                worker_logdir_root=log_dir,
-                provider=LocalProvider(
-                    channel=LocalChannel(),
-                    init_blocks=1,
-                    max_blocks=1,
-                ),
-            ),
+            #HighThroughputExecutor(
+            #    label="coffea_parsl_default",
+            #    cores_per_worker=1,
+            #    max_workers=1, # TODO: multicore local?
+            #    worker_logdir_root=log_dir,
+            #    provider=LocalProvider(
+            #        channel=LocalChannel(),
+            #        init_blocks=1,
+            #        max_blocks=1,
+            #    ),
+            #),
         ],
         strategy='simple',
         run_dir=os.path.join(log_dir,'runinfo'),
