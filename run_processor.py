@@ -5,7 +5,7 @@ import argparse
 import glob
 import logging
 
-logging.basicConfig(filename='processor.log', level=logging.INFO)
+logging.basicConfig(filename='run_processor.log', level=logging.INFO)
 rootLogger = logging.getLogger()
 logging.captureWarnings(True)
 
