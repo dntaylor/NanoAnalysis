@@ -28,7 +28,7 @@ Distribution via parsl is the only supported condor mode right now.
 
 Then convert output to flat histograms for plotting with ROOT
 ```bash
-python flatten.py
+./flatten.py hists/*/*/*.coffea
 ```
 
 ## Development
