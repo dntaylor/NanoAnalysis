@@ -42,9 +42,9 @@ def parsl_condor_config(workers=1):
     cores_per_job = 1
     mem_per_core = 2000
     mem_request = mem_per_core * cores_per_job
-    init_blocks = workers
-    min_blocks = workers
-    max_blocks = 40*workers
+    init_blocks = 1
+    min_blocks = 1
+    max_blocks = workers
     htex_label='coffea_parsl_condor_htex'
     log_dir = 'parsl_logs'
 

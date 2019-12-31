@@ -23,7 +23,7 @@ generated from DAS.
 Can run locally or using condor.
 Distribution via parsl is the only supported condor mode right now.
 ```bash
-./run_processor.py processors/hzzProcessor_2018.coffea -j 20 --condor --parsl --fileset filesets/2018/all.json
+./run_processor.py -j 200 --condor --parsl hzzProcessor 2018 filesets/2018/all.json
 ```
 
 Then convert output to flat histograms for plotting with ROOT
