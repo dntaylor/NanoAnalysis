@@ -55,10 +55,12 @@ source columnar/bin/activate
 export PATH=columnar/bin:$PATH
 export PYTHONPATH=columnar/lib/python3.6/site-packages:$PYTHONPATH
 export X509_USER_PROXY={x509_proxy}
+mkdir -p {log_dir}/{htex_label}
 echo "Environment ready"
 '''
 
     # requirements for T2_US_Wisconsin (HAS_CMS_HDFS forces to run a T2 node not CHTC)
+    # Removing for now:
     scheduler_options = f'''
 transfer_output_files   = {log_dir}/{htex_label}
 RequestMemory           = {mem_request}

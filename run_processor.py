@@ -76,7 +76,7 @@ if __name__ == '__main__':
     executor_args = {
         'savemetrics': True, 'flatten':True, 
         'desc': f'Processing {args.baseprocessor} {args.year} {dataset}',
-        'retries': 1, 'skipbadfiles': True, 'xrootdtimeout':120, 'cleanup': False,
+        'retries': 1, 'skipbadfiles': True, 'xrootdtimeout':120,
     }
     pre_args = {
         'desc': f'Preprocessing {args.baseprocessor} {args.year} {dataset}',

@@ -77,12 +77,12 @@ if __name__ == '__main__':
     
                 executor_args = {
                     'savemetrics': True, 'flatten':True, 
-                    'desc': f'Processing {baseprocessor} {year} {dataset}', 'position': -1*(2*index+1),
-                    'retries': 1, 'skipbadfiles': True, 'xrootdtimeout':120, 'cleanup': False,
+                    'desc': f'Processing {baseprocessor} {year} {dataset}', #'position': -1*(2*index+1),
+                    'retries': 1, 'skipbadfiles': True, 'xrootdtimeout':120,
                 }
                 pre_args = {
                     'desc': f'Preprocessing {baseprocessor} {year} {dataset}',
-                    'position': -1*(2*index+2),
+                    #'position': -1*(2*index+2),
                 }
     
                 with open(filesetpath) as f:
