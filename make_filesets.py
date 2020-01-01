@@ -1,5 +1,22 @@
-import json
-from utilities import python_mkdir, load, dump
+#!/usr/bin/env python
+import os
+from collections import Counter
+from utilities import load, dump
+
+
+def maybe_dump(path, fileset):
+    # if the file exists: read in the current data, and test for differences
+    replace = False
+    oldfileset = load(path)
+    for dataset in fileset:
+        oldfilelist = oldfileset.get(dataset,[])
+        filelist = fileset[dataset]
+        if Counter(oldfilelist) != Counter(filelist):
+            replace = True
+    if not replace: return
+    dump(path,fileset)
+
+        
 
 fulldatafileset = load('data')
 fullmcfileset = load('mc')
@@ -14,9 +31,9 @@ for year in years:
         thisfileset = {s:[]}
         for d in fulldatafileset[year][s]['datasets']:
             thisfileset[s] += fulldatafileset[year][s]['files'][d]
-        dump(outpath.format(year=year,sample=s),thisfileset)
+        maybe_dump(outpath.format(year=year,sample=s),thisfileset)
         datafileset.update(thisfileset)
-    dump(outpath.format(year=year,sample='data'),datafileset)
+    maybe_dump(outpath.format(year=year,sample='data'),datafileset)
     fileset.update(datafileset)
 
 
@@ -25,9 +42,9 @@ for year in years:
         thisfileset = {s:[]}
         for d in fullmcfileset[year][s]['datasets']:
             thisfileset[s] += fullmcfileset[year][s]['files'][d]
-        dump(outpath.format(year=year,sample=s),thisfileset)
+        maybe_dump(outpath.format(year=year,sample=s),thisfileset)
         mcfileset.update(thisfileset)
-    dump(outpath.format(year=year,sample='mc'),mcfileset)
+    maybe_dump(outpath.format(year=year,sample='mc'),mcfileset)
     fileset.update(mcfileset)
 
-    dump(outpath.format(year=year,sample='all'),fileset)
+    maybe_dump(outpath.format(year=year,sample='all'),fileset)

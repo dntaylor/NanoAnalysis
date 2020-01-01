@@ -1,10 +1,12 @@
+#!/usr/bin/env python
 import os
 import json
 import subprocess
 from utilities import load, dump, get_das
 
 
-reload = True # requery everything
+update = True # requery everything
+verbose = True
 
 # NanoAODv6
 nano_tag = 'Nano25Oct2019'
@@ -26,7 +28,7 @@ datasets = [
     'EGamma', # 2017 instead of SingleElectron/DoubleEG
 ]
 
-def get_data(reload=False):
+def get_data(update=False,verbose=False):
 
     fname = 'data'
 
@@ -36,20 +38,20 @@ def get_data(reload=False):
         if year not in result: result[year] = {}
         for dataset in datasets:
             query = 'dataset dataset=/{}/{}*{}*/NANOAOD'.format(dataset,year_tags[year],nano_tag)
-            samples = get_das(query)
+            samples = get_das(query,verbose=verbose)
             if not samples: continue
             if dataset not in result[year]: result[year][dataset] = {}
             sampleMap = result[year][dataset].get('files',{})
             for sample in samples:
-                if not reload and sample in sampleMap: continue
+                if not update and sample in sampleMap: continue
                 query = 'file dataset={}'.format(sample)
-                sampleMap[sample] = get_das(query)
+                sampleMap[sample] = get_das(query,verbose=verbose)
     
             result[year][dataset] = {'datasets': samples, 'files': sampleMap}
     
     dump(fname,result)
 
-get_data(reload)
+get_data(update,verbose)
 
 # mc
 year_tags = {
@@ -131,7 +133,7 @@ datasets = [
 ]
 
 
-def get_mc(reload=False):
+def get_mc(update=False,verbose=False):
 
     fname = 'mc'
 
@@ -141,17 +143,17 @@ def get_mc(reload=False):
         if year not in result: result[year] = {}
         for dataset in datasets:
             query = 'dataset dataset=/{}/{}*{}*/NANOAODSIM'.format(dataset,year_tags[year],nano_tag)
-            samples = get_das(query)
+            samples = get_das(query,verbose=verbose)
             if not samples: continue
             if dataset not in result[year]: result[year][dataset] = {}
             sampleMap = result[year][dataset].get('files',{})
             for sample in samples:
-                if not reload and sample in sampleMap: continue
+                if not update and sample in sampleMap: continue
                 query = 'file dataset={}'.format(sample)
-                sampleMap[sample] = get_das(query)
+                sampleMap[sample] = get_das(query,verbose=verbose)
     
             result[year][dataset] = {'datasets': samples, 'files': sampleMap}
     
     dump(fname,result)
 
-get_mc(reload)
+get_mc(update,verbose)

@@ -3,13 +3,14 @@ import sys
 import errno
 import subprocess
 import json
+import logging
 
-def python_mkdir(dir):
+def python_mkdir(directory):
     '''A function to make a unix directory as well as subdirectories'''
     try:
-        os.makedirs(dir)
+        if directory: os.makedirs(directory)
     except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(dir):
+        if exc.errno == errno.EEXIST and os.path.isdir(directory):
             pass
         else: raise
 
@@ -30,12 +31,13 @@ def which(program):
 
     return None
 
-def runCommand(command):
+def runCommand(command,verbose=False):
+    if verbose: logging.info(command)
     return subprocess.Popen(command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT).communicate()[0]
 
-def get_das(query):
+def get_das(query,verbose=False):
     command = 'dasgoclient -query "{}"'.format(query)
-    return [line.decode('utf-8') for line in run_command(command).split()]
+    return [line.decode('utf-8') for line in runCommand(command,verbose=verbose).split()]
 
 def load(fname):
     jname = '{}.json'.format(fname)
