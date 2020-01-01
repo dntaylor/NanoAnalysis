@@ -145,6 +145,7 @@ xsec = {
     # values are N3LO 
     'GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV709_pythia8'             : get_higgs('ggH','ZZ',True),
     'GluGluHToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8'            : get_higgs('ggH','ZZ',True),
+    'GluGluHToZZTo4L_M125_13TeV_powheg2_minloHJJ_JHUGenV7011_pythia8'   : get_higgs('ggH','ZZ',True),
     'GluGluHToZZTo4L_M125_13TeV_powheg2_minloHJJ_JHUgenV6_pythia8'      : get_higgs('ggH','ZZ',True),
     'VBF_HToZZTo4L_M125_13TeV_powheg2_JHUGenV709_pythia8'               : get_higgs('VBF','ZZ',True),
     'VBF_HToZZTo4L_M125_13TeV_powheg2_JHUGenV7011_pythia8'              : get_higgs('VBF','ZZ',True),

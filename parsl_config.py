@@ -47,6 +47,7 @@ def parsl_condor_config(workers=1):
     max_blocks = workers
     htex_label='coffea_parsl_condor_htex'
     log_dir = 'parsl_logs'
+    log_dir_full = os.path.join('/nfs_scratch/dntaylor',log_dir)
 
     worker_init = f'''
 echo "Setting up environment"
@@ -70,7 +71,7 @@ Requirements            = TARGET.HAS_CMS_HDFS && TARGET.Arch == "X86_64"
 priority                = 10
 '''
 
-    transfer_input_files = ['columnar.tar.gz', os.path.join(grid_proxy_dir, x509_proxy)]
+    transfer_input_files = [os.path.join(os.path.dirname(os.path.abspath(__file__)),'columnar.tar.gz'), os.path.join(grid_proxy_dir, x509_proxy)]
 
     htex = Config(
         executors=[
@@ -82,14 +83,16 @@ priority                = 10
                 max_workers=cores_per_job,
                 worker_logdir_root=log_dir,
                 provider=CondorProvider(
-                    channel=LocalChannel(),
+                    channel=LocalChannel(
+                        userhome='/nfs_scratch/dntaylor',
+                    ),
                     init_blocks=init_blocks,
                     min_blocks=min_blocks,
                     max_blocks=max_blocks,
                     nodes_per_block=1,
                     worker_init=worker_init,
                     transfer_input_files=transfer_input_files,
-                    scheduler_options=scheduler_options
+                    scheduler_options=scheduler_options,
                 ),
             ),
             # TODO: works, but really isn't helpful since half of the tasks get shipped to the condor
@@ -109,7 +112,7 @@ priority                = 10
             #),
         ],
         strategy='simple',
-        run_dir=os.path.join(log_dir,'runinfo'),
+        run_dir=os.path.join(log_dir_full,'runinfo'),
         #retries = 2,
     )
 

@@ -25,6 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('fileset', default='', help='Fileset to process')
     parser.add_argument('--output', default='', help='Output histogram filename')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
+    parser.add_argument('-n', '--maxfiles', type=int, default=-1, help='Maximum number of files to process')
     scheduler = parser.add_mutually_exclusive_group()
     scheduler.add_argument('--dask', action='store_true', help='Use dask to distribute')
     scheduler.add_argument('--parsl', action='store_true', help='Use parsl to distribute')
@@ -37,7 +38,8 @@ if __name__ == '__main__':
 
     if not args.output:
         args.output = f'hists/{args.baseprocessor}/{args.year}/{dataset}.coffea'
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
+    if os.path.dirname(args.output):
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
     if os.path.exists(processorpath):
         processor_instance = load(processorpath)
@@ -53,6 +55,7 @@ if __name__ == '__main__':
         fileset = json.load(f)
         for ds in fileset:
             fileset[ds] = [redirector+x if x.startswith('/store') else x for x in fileset[ds]]
+            if args.maxfiles>0: fileset[ds] = fileset[ds][:args.maxfiles]
 
     rootLogger.info('Will process: '+' '.join(list(fileset.keys())))
 

@@ -8,6 +8,7 @@ import numpy as np
 import uproot
 import uproot_methods
 from coffea import hist, processor, lookup_tools
+from coffea.lumi_tools import lumi_tools
 from coffea.util import load, save
 from coffea.analysis_objects import JaggedCandidateArray
 from awkward import JaggedArray, IndexedArray
@@ -306,6 +307,16 @@ class HZZProcessor(processor.ProcessorABC):
         # TODO: instead of cutflow, use processor.PackedSelection
         output['cutflow']['all events'] += df['event'].size
 
+        logging.debug('applying lumi mask')
+        if self._isData:
+            lumiMask = lumi_tools.LumiMask(self._corrections['golden'])
+            df['passLumiMask'] = lumiMask(df['run'],df['luminosityBlock'])
+        else:
+            df['passLumiMask'] = np.ones_like(df['run'],dtype=bool)
+        passLumiMask = df['passLumiMask']
+        selection.add('lumiMask',passLumiMask)
+            
+
         logging.debug('adding trigger')
         self._add_trigger(df)
 
@@ -599,9 +610,9 @@ class HZZProcessor(processor.ProcessorABC):
         for sel in self._selections:
             # TODO: all selections and scalefactors
             if sel=='hzz':
-                cut = selection.all('trigger','goodVertex','fourLeptons','zCand')
+                cut = selection.all('lumiMask','trigger','goodVertex','fourLeptons','zCand')
             elif sel=='massWindow':
-                cut = selection.all('trigger','goodVertex','fourLeptons','zCand','massWindow')
+                cut = selection.all('lumiMask','trigger','goodVertex','fourLeptons','zCand','massWindow')
             for chan in ['4e','4m','2e2m','2m2e']:
                 chanSel = chanSels[chan]
                 weight = chanSel.astype(float) * weights.weight()

@@ -7,6 +7,15 @@ from xsec import xsec
 
 def save_corrections(year):
     corrections = {}
+
+    # golden json
+    if year == '2016':
+        corrections['golden'] = '/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions16/13TeV/ReReco/Final/Cert_271036-284044_13TeV_ReReco_07Aug2017_Collisions16_JSON.txt'
+    if year == '2017':
+        corrections['golden'] = '/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions17/13TeV/ReReco/Cert_294927-306462_13TeV_EOY2017ReReco_Collisions17_JSON_v1.txt'
+    if year == '2018':
+        corrections['golden'] = '/afs/cern.ch/cms/CAF/CMSCOMM/COMM_DQM/certification/Collisions18/13TeV/ReReco/Cert_314472-325175_13TeV_17SeptEarlyReReco2018ABC_PromptEraD_Collisions18_JSON.txt'
+
     
     # cross sections
     corrections['xsec'] = xsec
@@ -59,7 +68,7 @@ def save_corrections(year):
     corrections[f'pileupWeight{year}Up'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioUp, edges)
     corrections[f'pileupWeight{year}Down'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioDown, edges)
     
-    save(corrections, f'corrections_{year}.coffea')
+    save(corrections, f'corrections/corrections_{year}.coffea')
 
 for year in ['2016','2017','2018']:
     save_corrections(year)
