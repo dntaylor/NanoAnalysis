@@ -41,7 +41,7 @@ for baseProcessor in "hzzProcessor"; do
             nfiles=`jq -r ".[\"${dataset}\"]" $fileset | jq length`
             njobs=$((nfiles/2+1))
             waitForJobs
-            echo "Launching" $baseProcessor $year $dataset $nfiles $njobs
+            echo "Launching" $baseProcessor $year $dataset
             ./run_processor.py -j $njobs --parsl --condor $baseProcessor $year $fileset &
             # sleep for a while so that the new parsl run can start
             sleep 10
