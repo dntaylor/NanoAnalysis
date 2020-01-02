@@ -116,7 +116,7 @@ if __name__ == '__main__':
             executor=executor,
             executor_args=executor_args,
             pre_args=pre_args,
-            chunksize=300000, # 200000 good for condor 1000 MB, request 2000 MB/core
+            chunksize=200000, # 200000 good for condor 1000 MB, request 2000 MB/core
         )
 
 
