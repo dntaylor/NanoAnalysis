@@ -113,7 +113,7 @@ priority                = 10
         ],
         strategy='simple',
         run_dir=os.path.join(log_dir_full,'runinfo'),
-        #retries = 2,
+        retries = 2, # retry all failures, xrootd failures are retried then skipped via coffea executor itself
     )
 
     return htex
