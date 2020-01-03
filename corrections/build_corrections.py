@@ -26,12 +26,48 @@ def save_corrections(year):
     
     extractor = lookup_tools.extractor()
     # electron
+    # POG
+    if year == '2016':
+        extractor.add_weight_sets([
+            'electron_id_Veto_ * data/scalefactors/electron/2016/2016_ElectronWPVeto_Fall17V2.root',
+            'electron_id_Loose_ * data/scalefactors/electron/2016/2016LegacyReReco_ElectronLoose_Fall17V2.root',
+            'electron_id_Medium_ * data/scalefactors/electron/2016/2016LegacyReReco_ElectronMedium_Fall17V2.root',
+            'electron_id_Tight_ * data/scalefactors/electron/2016/2016LegacyReReco_ElectronTight_Fall17V2.root',
+            'electron_id_MVA80_ * data/scalefactors/electron/2016/2016LegacyReReco_ElectronMVA80_Fall17V2.root',
+            'electron_id_MVA90_ * data/scalefactors/electron/2016/2016LegacyReReco_ElectronMVA90_Fall17V2.root',
+            'electron_id_MVA80noiso_ * data/scalefactors/electron/2016/2016LegacyReReco_ElectronMVA80noiso_Fall17V2.root',
+            'electron_id_MVA90noiso_ * data/scalefactors/electron/2016/2016LegacyReReco_ElectronMVA90noiso_Fall17V2.root',
+        ])
+    elif year == '2017':
+        extractor.add_weight_sets([
+            'electron_id_Veto_ * data/scalefactors/electron/2017/2017_ElectronWPVeto_Fall17V2.root',
+            'electron_id_Loose_ * data/scalefactors/electron/2017/2017_ElectronLoose.root',
+            'electron_id_Medium_ * data/scalefactors/electron/2017/2017_ElectronMedium.root',
+            'electron_id_Tight_ * data/scalefactors/electron/2017/2017_ElectronTight.root',
+            'electron_id_MVA80_ * data/scalefactors/electron/2017/2017_ElectronMVA80.root',
+            'electron_id_MVA90_ * data/scalefactors/electron/2017/2017_ElectronMVA90.root',
+            'electron_id_MVA80noiso_ * data/scalefactors/electron/2017/2017_ElectronMVA80noiso.root',
+            'electron_id_MVA90noiso_ * data/scalefactors/electron/2017/2017_ElectronMVA90noiso.root',
+        ])
+    elif year == '2018':
+        extractor.add_weight_sets([
+            'electron_id_Veto_ * data/scalefactors/electron/2018/2018_ElectronWPVeto_Fall17V2.root',
+            'electron_id_Loose_ * data/scalefactors/electron/2018/2018_ElectronLoose.root',
+            'electron_id_Medium_ * data/scalefactors/electron/2018/2018_ElectronMedium.root',
+            'electron_id_Tight_ * data/scalefactors/electron/2018/2018_ElectronTight.root',
+            'electron_id_MVA80_ * data/scalefactors/electron/2018/2018_ElectronMVA80.root',
+            'electron_id_MVA90_ * data/scalefactors/electron/2018/2018_ElectronMVA90.root',
+            'electron_id_MVA80noiso_ * data/scalefactors/electron/2018/2018_ElectronMVA80noiso.root',
+            'electron_id_MVA90noiso_ * data/scalefactors/electron/2018/2018_ElectronMVA90noiso.root',
+        ])
+
+    # HZZ
     extractor.add_weight_sets([
         # electron reco
-        f'electron_reco_ * data/scalefactors/electron/Ele_Reco_{year}.root',
+        f'electron_reco_ * data/scalefactors/electron/{year}/Ele_Reco_{year}.root',
         # electron hzz id
-        f'electron_hzz_id_nogap_ * data/scalefactors/electron/ElectronSF_Legacy_{year}_NoGap.root',
-        f'electron_hzz_id_gap_ * data/scalefactors/electron/ElectronSF_Legacy_{year}_Gap.root',
+        f'electron_hzz_id_nogap_ * data/scalefactors/electron/{year}/ElectronSF_Legacy_{year}_NoGap.root',
+        f'electron_hzz_id_gap_ * data/scalefactors/electron/{year}/ElectronSF_Legacy_{year}_Gap.root',
     ])
 
     # muon
@@ -70,6 +106,22 @@ def save_corrections(year):
     extractor.finalize()
     evaluator = extractor.make_evaluator()
     
+    # EGamma POG corrections
+    idnums = [
+        'Veto',
+        'Loose',
+        'Medium',
+        'Tight',
+        'MVA80',
+        'MVA90',
+        'MVA80noiso',
+        'MVA90noiso',
+    ]
+
+    for idnum in idnums:
+        corrections[f'electron_id_{idnum}'] = evaluator[f'electron_id_{idnum}_EGamma_SF2D']
+
+    # HZZ corrections
     corrections['electron_reco'] = evaluator['electron_reco_EGamma_SF2D']
     corrections['electron_hzz_id_nogap'] = evaluator['electron_hzz_id_nogap_EGamma_SF2D']
     corrections['electron_hzz_id_gap'] = evaluator['electron_hzz_id_gap_EGamma_SF2D']
@@ -152,10 +204,10 @@ def save_corrections(year):
         histkey = f'NUM_{isonum}_DEN_{isodenom}_{effvars}'
         if isodenom in ['HighPtIDandIPCut', 'TrkHighPtID']:
             histkey = f'NUM_{isonum}_DEN_{isodenom}_{highpt_effvars}'
-        corrections[f'muon_id_{isonum}_{isodenom}'] = evaluator[f'muon_iso_{histkey}']
+        corrections[f'muon_iso_{isonum}_{isodenom}'] = evaluator[f'muon_iso_{histkey}']
         if year == '2016':
-            corrections[f'muon_id_{isonum}_{isodenom}']._values *= lumi2016_BCDEF
-            corrections[f'muon_id_{isonum}_{isodenom}']._values += evaluator[f'muon_iso_2_{histkey}']._values * lumi2016_GH
+            corrections[f'muon_iso_{isonum}_{isodenom}']._values *= lumi2016_BCDEF
+            corrections[f'muon_iso_{isonum}_{isodenom}']._values += evaluator[f'muon_iso_2_{histkey}']._values * lumi2016_GH
 
     for jpsinum in jpsinums:
         histkey = f'NUM_{jpsinum}_DEN_{jpsidenom}_{jpsieffvars}'

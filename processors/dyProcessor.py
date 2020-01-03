@@ -363,7 +363,6 @@ class DYProcessor(processor.ProcessorABC):
             chanSels[chan] = ((abs(z1pdg)==pdgIds[0])
                             & (abs(z2pdg)==pdgIds[1]))
 
-        # TODO lepton scalefactors
         weights = processor.Weights(df.size)
         if self._isData: 
             output['sumw'][dataset] = 0 # always set to 0 for data
@@ -375,18 +374,14 @@ class DYProcessor(processor.ProcessorABC):
                         self._corrections[f'pileupWeight{self._year}Up'](df['Pileup_nPU']),
                         self._corrections[f'pileupWeight{self._year}Down'](df['Pileup_nPU']),
                         )
-            # electron sf
-            # gap: 1.442 1.566
             zls = [z1, z2]
+            # electron sf
             for ei, zl in enumerate(zls):
                 ei = str(ei)
                 eta = get_lepton_values(zl,'etaSC')
                 pt = get_lepton_values(zl,'pt')
                 electronRecoSF = self._corrections['electron_reco'](eta,pt)
-                # TODO: electron ID SF
-                #electronIdSF = self._corrections['_nogap'](eta,pt)
-                #gapMask = ((abs(eta)>1.442) & (abs(eta)<1.566))
-                #electronIdSF[gapMask] = self._corrections['_gap'](eta,pt)[gapMask]
+                electronIdSF = self._corrections['electron_id_MVA90'](eta,pt)
                 electronSF = np.ones_like(electronRecoSF)
                 if ei in ['0','1']:
                     chans = ['ee']
@@ -395,10 +390,10 @@ class DYProcessor(processor.ProcessorABC):
                 for chan in chans:
                     chanSel = (chanSels[chan].ones_like().sum()>0) # turns empty arrays into 0's, nonempty int 1's
                     electronSF[chanSel] *= electronRecoSF[chanSel].prod()
-                    #electronSF[chanSel] *= electronIdSF[chanSel].prod()
+                    electronSF[chanSel] *= electronIdSF[chanSel].prod()
                 weights.add('electronSF'+ei,electronSF)
 
-            # Muon SF
+            # muon SF
             for mi, zl in enumerate(zls):
                 mi = str(mi)
                 eta = get_lepton_values(zl,'eta')
@@ -408,7 +403,7 @@ class DYProcessor(processor.ProcessorABC):
                     isoSF = self._corrections['muon_iso_TightRelIso_MediumID'](eta,pt)
                 else:
                     idSF = self._corrections['muon_id_MediumPromptID'](pt,abs(eta))
-                    isoSF = self._corrections['muon_id_TightRelIso_MediumID'](pt,abs(eta))
+                    isoSF = self._corrections['muon_iso_TightRelIso_MediumID'](pt,abs(eta))
                     
                 muonSF = np.ones_like(idSF)
                 if mi in ['0','1']:
@@ -423,7 +418,6 @@ class DYProcessor(processor.ProcessorABC):
 
         logging.debug('filling')
         for sel in self._selections:
-            # TODO: all selections and scalefactors
             if sel=='massWindow':
                 cut = selection.all('lumiMask','trigger','goodVertex','twoLeptons','zCand','massWindow')
             for chan in ['ee','mm']:

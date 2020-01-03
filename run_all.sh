@@ -35,16 +35,16 @@ for baseProcessor in hzzProcessor dyProcessor; do
             fi
             hists=hists/${baseProcessor}/${year}/${dataset}.coffea
             if [ $hists -nt $processor ] && [ $hists -nt $fileset ]; then
-                echo "Skipping" $baseProcessor $year $dataset
+                #echo "Skipping" $baseProcessor $year $dataset
                 continue
             fi
             nfiles=`jq -r ".[\"${dataset}\"]" $fileset | jq length`
             njobs=$((nfiles/2+1))
             waitForJobs
-            echo "Launching" $baseProcessor $year $dataset
+            #echo "Launching" $baseProcessor $year $dataset
             ./run_processor.py -j $njobs --parsl --condor $baseProcessor $year $fileset &
             # sleep for a while so that the new parsl run can start
-            sleep 10
+            sleep 20
         done
     done
 done
