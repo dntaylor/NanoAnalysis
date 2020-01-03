@@ -138,3 +138,6 @@ columnar.tar.gz
 *.root
 *.json
 *.ipynb
+hists/
+plots/
+parsl_logs/

@@ -30,7 +30,7 @@ class HZZProcessor(processor.ProcessorABC):
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
-        mass_axis = hist.Bin("mass", r"$m_{4\ell}$ [GeV]", 600, 0.25, 300)
+        mass_axis = hist.Bin("mass", r"$m_{4\ell}$ [GeV]", 1200, 0.25, 600)
         zmass_axis = hist.Bin("mass", r"$m_{2\ell}$ [GeV]", 240, 0, 120)
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
         met_axis = hist.Bin("met", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
