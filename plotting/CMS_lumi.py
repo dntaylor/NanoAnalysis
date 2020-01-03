@@ -89,8 +89,6 @@ def CMS_lumi(pad,  iPeriod,  iPosX ):
     elif ( iPeriod==0 ):
         lumiText += lumi_sqrtS
             
-    #print lumiText
-
     latex = rt.TLatex()
     latex.SetNDC()
     latex.SetTextAngle(0)
@@ -147,7 +145,7 @@ def CMS_lumi(pad,  iPeriod,  iPosX ):
                 latex.SetTextFont(extraTextFont)
                 latex.SetTextAlign(align_)
                 latex.SetTextSize(extraTextSize*t)
-                latex.DrawLatex(posX_, posY_- relExtraDY*cmsTextSize*t, extraText)
+                latex.DrawLatex(posX_+0.025, posY_- relExtraDY*cmsTextSize*t, extraText)
     elif( writeExtraText ):
         if( iPosX==0):
             relPosX2 = 0.13

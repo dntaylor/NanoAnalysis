@@ -46,7 +46,7 @@ sampleMap = {
         'EGamma',
     ],
 }
-backgrounds = ['ggZZ','ZZ','HZZ']
+backgrounds = ['Z','TT','ggZZ','ZZ','HZZ']
 data = 'DATA'
 signals = []
 
@@ -120,3 +120,26 @@ for plot in plots:
             if s=='SIG': hists[s].Scale(0.001)
         # send to plotter
         plotter.plot(hists, f'{chan}/{plot}', **plots[plot])
+
+    # combined
+    hists = {s:[] for s in sampleMap}
+    for chan in channels:
+        # load the histograms
+        for s in sampleMap:
+            for sample in sampleMap[s]:
+                name = f'h_{plot}_{chan}_{s}_{sample}'
+                hist  = tfiles[sample].Get(plots[plot]['hPath'].format(sample=sample,chan=chan))
+                if hist:
+                    hists[s] += [hist.Clone(name)]
+    # sum the histograms
+    for s in hists:
+        hname = f'{plot}_{s}'
+        hist = sumHists(hname,*hists[s])
+        # bin the histogram
+        if hist:
+            binning = array('d',plots[plot]['binning'])
+            hist = hist.Rebin(len(binning)-1,hname+'_rebin',binning)
+        hists[s] = hist
+        if s=='SIG': hists[s].Scale(0.001)
+    # send to plotter
+    plotter.plot(hists, f'{plot}', **plots[plot])
