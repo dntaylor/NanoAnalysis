@@ -1,4 +1,4 @@
-nCores=12
+nCores=20
 
 
 function waitForJobs {
@@ -19,7 +19,7 @@ function finishJobs {
     done
 }
 
-for baseProcessor in "hzzProcessor"; do
+for baseProcessor in hzzProcessor dyProcessor; do
     for year in 2016 2017 2018; do
         processor=processors/${baseProcessor}_${year}.coffea
         for fileset in filesets/$year/*.json; do

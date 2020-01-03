@@ -6,6 +6,7 @@ import glob
 import logging
 
 logging.basicConfig(filename='_run_processor.log', level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+#logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 rootLogger = logging.getLogger()
 logging.captureWarnings(True)
 
@@ -80,9 +81,11 @@ if __name__ == '__main__':
         'savemetrics': True, 'flatten':True, 
         'desc': f'Processing {args.baseprocessor} {args.year} {dataset}',
         'retries': 1, 'skipbadfiles': True, 'xrootdtimeout':120,
+        'tailtimeout': 600,
     }
     pre_args = {
         'desc': f'Preprocessing {args.baseprocessor} {args.year} {dataset}',
+        'tailtimeout': 600,
     }
     if args.dask:
         executor = processor.dask_executor

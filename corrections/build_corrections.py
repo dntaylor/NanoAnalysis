@@ -33,12 +33,140 @@ def save_corrections(year):
         f'electron_hzz_id_nogap_ * data/scalefactors/electron/ElectronSF_Legacy_{year}_NoGap.root',
         f'electron_hzz_id_gap_ * data/scalefactors/electron/ElectronSF_Legacy_{year}_Gap.root',
     ])
+
+    # muon
+    # POG
+    if year == '2016':
+        extractor.add_weight_sets([
+            # id
+            'muon_id_ * data/scalefactors/muon/2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ID.root',
+            'muon_id_2_ * data/scalefactors/muon/2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ID.root',
+            # iso
+            'muon_iso_ * data/scalefactors/muon/2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunBCDEF_SF_ISO.root',
+            'muon_iso_2_ * data/scalefactors/muon/2016/EfficienciesStudies_2016_legacy_rereco_rootfiles_RunGH_SF_ISO.root',
+            # jpsi
+            'muon_id_jpsi_ * data/scalefactors/muon/2016/EfficienciesStudies_2016_legacy_rereco_Jpsi_rootfiles_RunBCDEF_SF_ID.root',
+            'muon_id_jpsi_2_ * data/scalefactors/muon/2016/EfficienciesStudies_2016_legacy_rereco_Jpsi_rootfiles_RunGH_SF_ID.root',
+        ])
+    elif year == '2017':
+        extractor.add_weight_sets([
+            # id
+            'muon_id_ * data/scalefactors/muon/2017/EfficienciesStudies_2017_rootfiles_RunBCDEF_SF_ID.root',
+            # iso
+            'muon_iso_ * data/scalefactors/muon/2017/EfficienciesStudies_2017_rootfiles_RunBCDEF_SF_ISO.root',
+            # jpsi
+            'muon_id_jpsi_ * data/scalefactors/muon/2017/EfficienciesStudies_2017_rootfiles_RunBCDEF_SF_ID_JPsi.root',
+        ])
+    elif year == '2018':
+        extractor.add_weight_sets([
+            # id
+            'muon_id_ * data/scalefactors/muon/2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ID.root',
+            # iso
+            'muon_iso_ * data/scalefactors/muon/2018/EfficienciesStudies_2018_rootfiles_RunABCD_SF_ISO.root',
+            # jpsi
+            'muon_id_jpsi_ * data/scalefactors/muon/2018/EfficienciesStudies_2018_Jpsi_rootfiles_RunABCD_SF_ID.root',
+        ])
+
     extractor.finalize()
     evaluator = extractor.make_evaluator()
     
     corrections['electron_reco'] = evaluator['electron_reco_EGamma_SF2D']
     corrections['electron_hzz_id_nogap'] = evaluator['electron_hzz_id_nogap_EGamma_SF2D']
     corrections['electron_hzz_id_gap'] = evaluator['electron_hzz_id_gap_EGamma_SF2D']
+
+    # Muon POG corrections
+    if year == '2016':
+        idnums = [
+            'LooseID',
+            'MediumID',
+            'TightID',
+            'HighPtID',
+        ]
+        iddenom = 'genTracks'
+        effvars = 'eta_pt'
+        highpt_effvars = 'eta_pair_newTuneP_probe_pt'
+        iso_num_denoms = [
+            ('LooseRelTkIso', 'HighPtIDandIPCut'),
+            ('TightRelIso', 'MediumID'),
+            ('TightRelIso', 'TightIDandIPCut'),
+            ('LooseRelIso', 'LooseID'),
+            ('LooseRelIso', 'MediumID'),
+            ('LooseRelIso', 'TightIDandIPCut'),
+        ]
+        jpsinums = [
+            'LooseID',
+            'MediumID',
+            'TightID',
+            'SoftID',
+        ]
+        jpsidenom = 'genTracks'
+        jpsieffvars = 'pt_abseta'
+    elif year in ['2017','2018']:
+        idnums = [
+            'LooseID',
+            'MediumID',
+            'MediumPromptID',
+            'TightID',
+            'SoftID',
+            'HighPtID',
+            'TrkHighPtID',
+        ]
+        iddenom = 'genTracks'
+        if year == '2018':
+            iddenom = 'TrackerMuons'
+        effvars = 'pt_abseta'
+        highpt_effvars = 'pair_newTuneP_probe_pt_abseta'
+        iso_num_denoms = [
+            ('LooseRelTkIso', 'HighPtIDandIPCut'),
+            ('LooseRelTkIso', 'TrkHighPtID'),
+            ('TightRelTkIso', 'HighPtIDandIPCut'),
+            ('TightRelTkIso', 'TrkHighPtID'),
+            ('TightRelIso', 'MediumID'),
+            ('TightRelIso', 'TightIDandIPCut'),
+            ('LooseRelIso', 'LooseID'),
+            ('LooseRelIso', 'MediumID'),
+            ('LooseRelIso', 'TightIDandIPCut'),
+        ]
+        jpsinums = [
+            'LooseID',
+            'MediumID',
+            'TightID',
+            'SoftID',
+        ]
+        jpsidenom = 'genTracks'
+        jpsieffvars = 'pt_abseta'
+
+    lumi2016_BCDEF = 19.721 / (16.146 + 19.721)
+    lumi2016_GH    = 16.146 / (16.146 + 19.721)
+
+    for idnum in idnums:
+        histkey = f'NUM_{idnum}_DEN_{iddenom}_{effvars}'
+        if idnum in ['HighPtID', 'TrkHighPtID']:
+            histkey = f'NUM_{idnum}_DEN_{iddenom}_{highpt_effvars}'
+        corrections[f'muon_id_{idnum}'] = evaluator[f'muon_id_{histkey}']
+        if year == '2016':
+            corrections[f'muon_id_{idnum}']._values *= lumi2016_BCDEF
+            corrections[f'muon_id_{idnum}']._values += evaluator[f'muon_id_2_{histkey}']._values * lumi2016_GH
+
+    for isonum, isodenom in iso_num_denoms:
+        histkey = f'NUM_{isonum}_DEN_{isodenom}_{effvars}'
+        if isodenom in ['HighPtIDandIPCut', 'TrkHighPtID']:
+            histkey = f'NUM_{isonum}_DEN_{isodenom}_{highpt_effvars}'
+        corrections[f'muon_id_{isonum}_{isodenom}'] = evaluator[f'muon_iso_{histkey}']
+        if year == '2016':
+            corrections[f'muon_id_{isonum}_{isodenom}']._values *= lumi2016_BCDEF
+            corrections[f'muon_id_{isonum}_{isodenom}']._values += evaluator[f'muon_iso_2_{histkey}']._values * lumi2016_GH
+
+    for jpsinum in jpsinums:
+        histkey = f'NUM_{jpsinum}_DEN_{jpsidenom}_{jpsieffvars}'
+        corrections[f'muon_id_jpsi_{jpsinum}'] = evaluator[f'muon_id_jpsi_{histkey}']
+        if year == '2016':
+            corrections[f'muon_id_jpsi_{jpsinum}']._values *= lumi2016_BCDEF
+            corrections[f'muon_id_jpsi_{jpsinum}']._values += evaluator[f'muon_id_jpsi_2_{histkey}']._values * lumi2016_GH
+
+
+
+
     
     # pileup
     with uproot.open(f'data/pileup/dataPileup{year}.root') as f:
