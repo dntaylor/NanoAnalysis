@@ -143,8 +143,9 @@ class DYProcessor(processor.ProcessorABC):
 
         # Define priority
         # To avoid double counting in data, for a given dataset
-        # all lower and current datasets triggers are accepted
+        # all current datasets triggers are accepted
         # and all higher datasets triggers are vetoed
+        # no lower datasets triggers are looked at
         # in MC, all triggers are accepted
         if self._year=='2016':
             triggerPriority = [
@@ -162,7 +163,7 @@ class DYProcessor(processor.ProcessorABC):
 
         triggersToAccept = []
         triggersToVeto = []
-        accept = dataset not in triggerPriority # accept MC, reject data until you reach the correct dataset
+        accept = not self._isData
         for d in triggerPriority:
             if d==dataset: accept = True # start accepting triggers
             for p in triggerPaths[d]:
@@ -170,6 +171,7 @@ class DYProcessor(processor.ProcessorABC):
                     triggersToAccept += [p]
                 else:
                     triggersToVeto += [p]
+            if d==dataset: break # don't need to look at rest of trigger paths in data
 
         # TODO: no guarantee the trigger is in every dataset?
         # for now, check, but should find out

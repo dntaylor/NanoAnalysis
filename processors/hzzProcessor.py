@@ -7,6 +7,7 @@ import argparse
 import numpy as np
 import uproot
 import uproot_methods
+import itertools
 from coffea import hist, processor, lookup_tools
 from coffea.lumi_tools import lumi_tools
 from coffea.util import load, save
@@ -250,8 +251,9 @@ class HZZProcessor(processor.ProcessorABC):
 
         # Define priority
         # To avoid double counting in data, for a given dataset
-        # all lower and current datasets triggers are accepted
+        # all current datasets triggers are accepted
         # and all higher datasets triggers are vetoed
+        # no lower datasets triggers are looked at
         # in MC, all triggers are accepted
         if self._year=='2016':
             triggerPriority = [
@@ -271,7 +273,7 @@ class HZZProcessor(processor.ProcessorABC):
 
         triggersToAccept = []
         triggersToVeto = []
-        accept = dataset not in triggerPriority # accept MC, reject data until you reach the correct dataset
+        accept = not self._isData
         for d in triggerPriority:
             if d==dataset: accept = True # start accepting triggers
             for p in triggerPaths[d]:
@@ -279,6 +281,7 @@ class HZZProcessor(processor.ProcessorABC):
                     triggersToAccept += [p]
                 else:
                     triggersToVeto += [p]
+            if d==dataset: break # don't need to look at rest of trigger paths in data
 
         # TODO: no guarantee the trigger is in every dataset?
         # for now, check, but should find out
@@ -452,35 +455,30 @@ class HZZProcessor(processor.ProcessorABC):
         # combine them
         zz = JaggedArray.concatenate([zz_4e,zz_4m,zz_2e2m], axis=1)
 
-        # TODO: reevaluate best combination to match HZZ
-        # TODO: include FSR
-        def massmetric(cands, i, j):
-            z1mass = (cands['%d' % i]['p4'] + cands['%d' % j]['p4']).mass
-            k, l = set(range(4)) - {i, j}
-            z2mass = (cands['%d' % k]['p4'] + cands['%d' % l]['p4']).mass
-            deltam = np.abs(z1mass - ZMASS)
-            deltaq = np.abs(cands['%d' % i]['charge'] + cands['%d' % j]['charge'])
-            deltaf1 = np.abs(cands['%d' % i]['pdgId'] + cands['%d' % j]['pdgId'])
-            deltaf2 = np.abs(cands['%d' % k]['pdgId'] + cands['%d' % l]['pdgId'])
-            # inflate deltam to absurd number if charge sum is nonzero or different flavor
-            return z1mass, z2mass, deltam + 1e10*deltaq + 1e10*deltaf1 + 1e10*deltaf2
 
-
-        def bestcombination(zzcands):
-            good_charge = sum(zzcands[str(i)]['charge'] for i in range(4)) == 0
-            good_event = good_charge.sum() == 1
-            # this keeps the first zz cand in each event
-            # should instead sort the best first
-            # TODO: select best
-            zzcands = zzcands[good_charge*good_event][:,:1]
-            if zzcands.counts.sum() == 0:
-                # empty array (because a bug in concatenate makes it fail on empty arrays)
-                empty = JaggedArray.fromcounts(np.zeros(len(zzcands), dtype='i'), [])
-                return zzcands, empty, empty, empty, empty, empty, empty
-            # now we have to check the permutations of leptons for closest mass to Z boson
-            # only 4 of these 6 permutations are valid charge pairs, but its easier
-            # to compare them all, and assign a large delta mass rather than figure out which
-            # are valid beforehand
+        def best_zz(zz):
+            # zz is a jagged array of all possible combinations of 4 leptons (2e2m, 4e, 4m)
+            # we now need to decide which combination and iteration are the best
+            # first, exclude combinations that fail charge
+            zz = zz[(sum(zz[str(i)]['charge'] for i in range(4)) == 0)]
+            # next, the combinations
+            for i, j in itertools.combinations(range(4),2):
+                zzi = zz[str(i)]
+                zzj = zz[str(j)]
+                # all combinations of DR > 0.02
+                mask = (zzi.p4.delta_r(zzj.p4)>0.02)
+                # all OS combinations m(ll) > 4 not including fsr, regardless of flavor
+                opsign = (zzi['charge']+zzj['charge'] == 0)
+                mij = (zzi['p4']+zzj['p4']).mass
+                mask = mask & ((opsign & (mij>4)) | ~opsign)
+                zz = zz[mask]
+            # pt1 > 20, pt2 > 10
+            zz = zz[sum(zz[str(i)]['p4'].pt>20 for i in range(4)) >= 1]
+            zz = zz[sum(zz[str(i)]['p4'].pt>10 for i in range(4)) >= 2]
+            # m(4l)>70 including fsr TODO
+            zz = zz[(zz['p4'].mass>70)]
+            # Now check the combinatorics
+            # z1 = ij, z2 = kl not all will be valid charge combinations, so check them
             z1mass = []
             z2mass = []
             iperm = []
@@ -488,21 +486,60 @@ class HZZProcessor(processor.ProcessorABC):
             z12 = []
             z21 = []
             z22 = []
-            for i,j in [(0,1), (0,2), (0,3), (1,2), (1,3), (2,3)]:
-                z1, z2, idx = massmetric(zzcands, i, j)
-                z1mass.append(z1)
-                z2mass.append(z2)
-                iperm.append(idx)
-                k, l = set(range(4)) - {i,j}
-                i = z1.ones_like(dtype=int)*i
-                j = z1.ones_like(dtype=int)*j
-                k = z1.ones_like(dtype=int)*k
-                l = z1.ones_like(dtype=int)*l
-                z11.append(i)
-                z12.append(j)
-                z21.append(k)
-                z22.append(l)
+            zzindex = []
+            for i, j in itertools.combinations(range(4),2):
+                k, l = set(range(4)) - {i, j}
+                zzi = zz[str(i)]
+                zzj = zz[str(j)]
+                zzk = zz[str(k)]
+                zzl = zz[str(l)]
+                z1 = (zzi['p4']+zzj['p4']).mass
+                z2 = (zzk['p4']+zzl['p4']).mass
+                deltam = np.abs(z1 - ZMASS)
+                idx = deltam
+                zi = z1.ones_like(dtype=int)*i
+                zj = z1.ones_like(dtype=int)*j
+                zk = z1.ones_like(dtype=int)*k
+                zl = z1.ones_like(dtype=int)*l
+                four_flav = (abs(zzi['pdgId'])==abs(zzk['pdgId']))
+                ik_os = (zzi['charge'] + zzk['charge'])==0
+                za_ik = (zzi['p4']+zzk['p4']).mass
+                za_il = (zzi['p4']+zzl['p4']).mass
+                zb_jk = (zzj['p4']+zzk['p4']).mass
+                zb_jl = (zzj['p4']+zzl['p4']).mass
+                za = za_ik.flatten()
+                zb = zb_jl.flatten()
+                za[~ik_os.flatten()] = za_il[~ik_os].flatten()
+                zb[~ik_os.flatten()] = zb_jk[~ik_os].flatten()
+                zap = np.where(za>zb, za, zb)
+                zbp = np.where(za>zb, zb, za)
+                za = JaggedArray.fromoffsets(ik_os.offsets, zap)
+                zb = JaggedArray.fromoffsets(ik_os.offsets, zbp)
 
+                # verify charge and flavor
+                permmask = (zzi['charge'] + zzj['charge'])==0
+                permmask = permmask & (zzk['charge'] + zzl['charge'])==0
+                permmask = permmask & (zzi['pdgId'] + zzj['pdgId'])==0
+                permmask = permmask & (zzk['pdgId'] + zzl['pdgId'])==0
+                # z1 is closest to nominal z mass including fsr TODO
+                permmask = permmask & (np.abs(z1-ZMASS) < np.abs(z2-ZMASS))
+                # 40 < z1 < 120, 12 < z2 < 120 including fsr TODO
+                permmask = permmask & ((z1>40) & (z1<120) & (z2>12) & (z2<120))
+                # smart cut: za and zb are mass sorted alternative pairings (4e/4m). 
+                # require !(abs(za-mZ) < abs(z1-mZ) && zb<12) including fsr TODO
+                permmask = permmask & ((four_flav & ~((abs(za-ZMASS) < abs(z1-ZMASS)) & (zb<12))) | ~four_flav)
+
+                z1mass.append(z1[permmask])
+                z2mass.append(z2[permmask])
+                iperm.append(idx[permmask])
+                z11.append(zi[permmask])
+                z12.append(zj[permmask])
+                z21.append(zk[permmask])
+                z22.append(zl[permmask])
+                zzindex.append(zz.localindex[permmask])
+
+            # TODO: still implementing
+            # finally, choose the one with highest value of P_sig/P_bkg
 
             z1mass = JaggedArray.concatenate(z1mass, axis=1)
             z2mass = JaggedArray.concatenate(z2mass, axis=1)
@@ -511,19 +548,21 @@ class HZZProcessor(processor.ProcessorABC):
             z12 = JaggedArray.concatenate(z12, axis=1)
             z21 = JaggedArray.concatenate(z21, axis=1)
             z22 = JaggedArray.concatenate(z22, axis=1)
+            zzindex = JaggedArray.concatenate(zzindex, axis=1)
             z1mass = z1mass[iperm.argmin()]
             z2mass = z2mass[iperm.argmin()]
             z11 = z11[iperm.argmin()].astype(int).astype(str)
             z12 = z12[iperm.argmin()].astype(int).astype(str)
             z21 = z21[iperm.argmin()].astype(int).astype(str)
             z22 = z22[iperm.argmin()].astype(int).astype(str)
-            return zzcands, z1mass, z2mass, z11, z12, z21, z22
+            zzindex = zzindex[iperm.argmin()]
+            return zz[zzindex], z1mass, z2mass, z11, z12, z21, z22
 
 
         logging.debug('selecting best combinations')
-        zz, z1, z2, z11, z12, z21, z22 = bestcombination(zz)
+        zz, z1, z2, z11, z12, z21, z22 = best_zz(zz)
 
-        passZCand = ((z1.counts>0) & (z2.counts>0))
+        passZCand = ((z1.counts>0) & (z2.counts>0) & ((z1>40) & (z1<120) & (z2>12) & (z2<120)).counts>0)
         output['cutflow']['z cand'] += passZCand.sum()
         selection.add('zCand',passZCand)
 

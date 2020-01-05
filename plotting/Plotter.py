@@ -291,12 +291,22 @@ class Plotter(object):
 
         legend = self._getLegend(0.6,0.5,0.94,0.9)
 
-        # stack
         stack = self._getStack(hists)
+        hmaxes = [stack.GetMaximum()]
+        if not blind: 
+            data = self._getData(hists)
+            hmaxes += [data.GetMaximum()]
+        sampleHists = OrderedDict()
+        for sample in self.plotSamples:
+            sampleHists[sample] = self._getHist(sample,hists)
+            hmaxes += [sampleHists[sample].GetMaximum()]
+        hmax = max(hmaxes)
+
+        # stack
         stack.Draw('hist')
         stack.GetXaxis().SetTitle(xlabel)
         stack.GetYaxis().SetTitle(ylabel)
-        stack.SetMaximum(stack.GetMaximum()*5 if logy else stack.GetMaximum()*1.2)
+        stack.SetMaximum(hmax*5 if logy else hmax*1.2)
         if ymax!=None: stack.SetMaximum(ymax)
         if ymin!=None: stack.SetMinimum(ymin)
         if logx:
@@ -314,15 +324,12 @@ class Plotter(object):
 
         # data
         if not blind:
-            data = self._getData(hists)
             data.Draw('ex0 same') # TH1
             #data.Draw('p0 same') # TGraph
             legend.AddEntry(data,data.GetTitle(),'ep')
 
         # overlay histograms
-        sampleHists = OrderedDict()
         for sample in self.plotSamples:
-            sampleHists[sample] = self._getHist(sample,hists)
             sampleHists[sample].Draw('hist same')
             sampleHists[sample].SetLineWidth(3)
             legend.AddEntry(sampleHists[sample],sampleHists[sample].GetTitle(),'l')
