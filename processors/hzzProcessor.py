@@ -169,7 +169,7 @@ class HZZProcessor(processor.ProcessorABC):
                 "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
             ]
         elif self._year=='2017':
-            triggerPaths['EGamma'] = [
+            triggerPaths['DoubleEG'] = [
                 "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "HLT_DoubleEle33_CaloIdL_MW",
                 "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
@@ -245,7 +245,7 @@ class HZZProcessor(processor.ProcessorABC):
                 "HLT_Ele32_eta2p1_WPTight_Gsf",
             ]
         elif self._year=='2017':
-            triggerPaths['EGamma'] = [
+            triggerPaths['SingleElectron'] = [
                 "HLT_Ele35_WPTight_Gsf",
                 "HLT_Ele38_WPTight_Gsf",
                 "HLT_Ele40_WPTight_Gsf",

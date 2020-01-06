@@ -105,14 +105,13 @@ class DYProcessor(processor.ProcessorABC):
             triggerPaths['DoubleEG'] = [
                 "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
             ]
+        elif self._year=='2017':
+            triggerPaths['DoubleEG'] = [
+                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+            ]
 
         # EGamma
-        if self._year=='2017':
-            triggerPaths['EGamma'] = [
-                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
-                "HLT_Ele35_WPTight_Gsf",
-            ]
-        elif self._year=='2018':
+        if self._year=='2018':
             triggerPaths['EGamma'] = [
                 "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Ele32_WPTight_Gsf",
@@ -139,6 +138,10 @@ class DYProcessor(processor.ProcessorABC):
             triggerPaths['SingleElectron'] = [
                 "HLT_Ele27_WPTight_Gsf",
             ]
+        elif self._year=='2017':
+            triggerPaths['SingleElectron'] = [
+                "HLT_Ele35_WPTight_Gsf",
+            ]
 
 
         # Define priority
@@ -147,7 +150,7 @@ class DYProcessor(processor.ProcessorABC):
         # and all higher datasets triggers are vetoed
         # no lower datasets triggers are looked at
         # in MC, all triggers are accepted
-        if self._year=='2016':
+        if self._year=='2016' or self._year=='2017':
             triggerPriority = [
                 'DoubleMuon',
                 'DoubleEG',
