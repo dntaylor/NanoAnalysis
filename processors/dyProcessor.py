@@ -51,7 +51,7 @@ class DYProcessor(processor.ProcessorABC):
     def _add_muon_id(self, muons):
         # note: input muons must pass
         # slimmedMuons and (pt > 3 && (passed('CutBasedIdLoose') || passed('SoftCutBasedId') || passed('SoftMvaId') || passed('CutBasedIdGlobalHighPt') || passed('CutBasedIdTrkHighPt')))
-        ptCut = (muons.pt>5)
+        ptCut = (muons.pt>20)
         etaCut = (abs(muons.eta)<2.4)
         dxyCut = (abs(muons.dxy)<0.5)
         dzCut = (abs(muons.dz)<1)
@@ -68,7 +68,7 @@ class DYProcessor(processor.ProcessorABC):
     def _add_electron_id(self, electrons):
         # note: input electrons must pass
         # slimmedElectrons and (pt > 5)
-        ptCut = (electrons.pt>7)
+        ptCut = (electrons.pt>20)
         etaCut = (abs(electrons.eta)<2.5)
         dxyCut = (abs(electrons.dxy)<0.5)
         dzCut = (abs(electrons.dz)<1)
@@ -303,15 +303,10 @@ class DYProcessor(processor.ProcessorABC):
 
         def bestcombination(zcands):
             good_charge = sum(zcands[str(i)]['charge'] for i in range(2)) == 0
-            good_event = good_charge.sum() == 1
             # this keeps the first z cand in each event
             # should instead sort the best first
             # TODO: select best
-            zcands = zcands[good_charge*good_event][:,:1]
-            if zcands.counts.sum() == 0:
-                # empty array (because a bug in concatenate makes it fail on empty arrays)
-                empty = JaggedArray.fromcounts(np.zeros(len(zcands), dtype='i'), [])
-                return zcands
+            zcands = zcands[good_charge][:,:1]
             return zcands
 
 
@@ -353,6 +348,12 @@ class DYProcessor(processor.ProcessorABC):
             return JaggedArray.fromoffsets(zl.offsets,val)
 
         
+        z1pt = get_lepton_values(z1,'pt')
+        z2pt = get_lepton_values(z2,'pt')
+        passPt = ((z1pt>30) & (z2pt>20)).counts>0
+        output['cutflow']['pt threshold'] += passPt.sum()
+        selection.add('ptThreshold',passPt)
+
 
         chanSels = {}
         z1pdg = get_lepton_values(z1,'pdgId')
@@ -421,7 +422,7 @@ class DYProcessor(processor.ProcessorABC):
         logging.debug('filling')
         for sel in self._selections:
             if sel=='massWindow':
-                cut = selection.all('lumiMask','trigger','goodVertex','twoLeptons','zCand','massWindow')
+                cut = selection.all('lumiMask','trigger','goodVertex','twoLeptons','zCand','massWindow','ptThreshold')
             for chan in ['ee','mm']:
                 chanSel = chanSels[chan]
                 weight = chanSel.astype(float) * weights.weight()
@@ -443,12 +444,8 @@ class DYProcessor(processor.ProcessorABC):
 
 
     def postprocess(self, accumulator):
-        lumis = {
-            '2016': 35920,
-            '2017': 41530,
-            '2018': 59740,
-        }
-        lumi = lumis[self._year]
+        # always scale to 1000 pb for plotting
+        lumi = 1000
         scale = {}
         for dataset, sumw in accumulator['sumw'].items():
             if not sumw: continue

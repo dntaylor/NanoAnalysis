@@ -168,6 +168,12 @@ class HZZProcessor(processor.ProcessorABC):
                 "HLT_DoubleEle33_CaloIdL_GsfTrkIdVL_MW",
                 "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
             ]
+        elif self._year=='2017':
+            triggerPaths['EGamma'] = [
+                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "HLT_DoubleEle33_CaloIdL_MW",
+                "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
+            ]
 
         # MuonEG
         if self._year=='2016':
@@ -203,16 +209,7 @@ class HZZProcessor(processor.ProcessorABC):
             ]
 
         # EGamma
-        if self._year=='2017':
-            triggerPaths['EGamma'] = [
-                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
-                "HLT_DoubleEle33_CaloIdL_MW",
-                "HLT_Ele16_Ele12_Ele8_CaloIdL_TrackIdL",
-                "HLT_Ele35_WPTight_Gsf",
-                "HLT_Ele38_WPTight_Gsf",
-                "HLT_Ele40_WPTight_Gsf",
-            ]
-        elif self._year=='2018':
+        if self._year=='2018':
             triggerPaths['EGamma'] = [
                 "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "HLT_DoubleEle25_CaloIdL_MW",
@@ -247,6 +244,12 @@ class HZZProcessor(processor.ProcessorABC):
                 "HLT_Ele27_eta2p1_WPLoose_Gsf",
                 "HLT_Ele32_eta2p1_WPTight_Gsf",
             ]
+        elif self._year=='2017':
+            triggerPaths['EGamma'] = [
+                "HLT_Ele35_WPTight_Gsf",
+                "HLT_Ele38_WPTight_Gsf",
+                "HLT_Ele40_WPTight_Gsf",
+            ]
 
 
         # Define priority
@@ -255,18 +258,18 @@ class HZZProcessor(processor.ProcessorABC):
         # and all higher datasets triggers are vetoed
         # no lower datasets triggers are looked at
         # in MC, all triggers are accepted
-        if self._year=='2016':
+        if self._year=='2016' or self._year=='2017':
             triggerPriority = [
-                'DoubleMuon',
                 'DoubleEG',
+                'DoubleMuon',
                 'MuonEG',
-                'SingleMuon',
                 'SingleElectron',
+                'SingleMuon',
             ]
         else:
             triggerPriority = [
-                'DoubleMuon',
                 'EGamma',
+                'DoubleMuon',
                 'MuonEG',
                 'SingleMuon',
             ]
@@ -304,10 +307,8 @@ class HZZProcessor(processor.ProcessorABC):
         dataset = df['dataset']
         self._isData = dataset in ['SingleMuon','DoubleMuon','SingleElectron','DoubleEG','EGamma','MuonEG']
 
-
         selection = processor.PackedSelection()
 
-        # TODO: instead of cutflow, use processor.PackedSelection
         output['cutflow']['all events'] += df['event'].size
 
         logging.debug('applying lumi mask')
@@ -479,9 +480,15 @@ class HZZProcessor(processor.ProcessorABC):
             zz = zz[(zz['p4'].mass>70)]
             # Now check the combinatorics
             # z1 = ij, z2 = kl not all will be valid charge combinations, so check them
+            # i/j perms are the best combination sorting
+            # i is abs(z1-ZMASS)
+            # j is sum z2 lepton pt
+            # TODO: HZZ actually uses a P_sig/P_bkg to choose best instead of sum z2 lepton pt
+            iperm = []
+            jperm = []
+
             z1mass = []
             z2mass = []
-            iperm = []
             z11 = []
             z12 = []
             z21 = []
@@ -497,6 +504,7 @@ class HZZProcessor(processor.ProcessorABC):
                 z2 = (zzk['p4']+zzl['p4']).mass
                 deltam = np.abs(z1 - ZMASS)
                 idx = deltam
+                jdx = -1*(zzk['p4'].pt+zzl['p4'].pt)
                 zi = z1.ones_like(dtype=int)*i
                 zj = z1.ones_like(dtype=int)*j
                 zk = z1.ones_like(dtype=int)*k
@@ -529,33 +537,39 @@ class HZZProcessor(processor.ProcessorABC):
                 # require !(abs(za-mZ) < abs(z1-mZ) && zb<12) including fsr TODO
                 permmask = permmask & ((four_flav & ~((abs(za-ZMASS) < abs(z1-ZMASS)) & (zb<12))) | ~four_flav)
 
+                iperm.append(idx[permmask])
+                jperm.append(jdx[permmask])
+
                 z1mass.append(z1[permmask])
                 z2mass.append(z2[permmask])
-                iperm.append(idx[permmask])
                 z11.append(zi[permmask])
                 z12.append(zj[permmask])
                 z21.append(zk[permmask])
                 z22.append(zl[permmask])
                 zzindex.append(zz.localindex[permmask])
 
-            # TODO: still implementing
-            # finally, choose the one with highest value of P_sig/P_bkg
+            # a bit hacky, but make the second way smaller in scale
+            # number chosen such they 14 TeV is smaller than ~10 MeV
+            iperm = JaggedArray.concatenate(iperm, axis=1)
+            jperm = JaggedArray.concatenate(jperm, axis=1)
+            ijperm = iperm+1e-6*jperm
 
             z1mass = JaggedArray.concatenate(z1mass, axis=1)
             z2mass = JaggedArray.concatenate(z2mass, axis=1)
-            iperm = JaggedArray.concatenate(iperm, axis=1)
             z11 = JaggedArray.concatenate(z11, axis=1)
             z12 = JaggedArray.concatenate(z12, axis=1)
             z21 = JaggedArray.concatenate(z21, axis=1)
             z22 = JaggedArray.concatenate(z22, axis=1)
             zzindex = JaggedArray.concatenate(zzindex, axis=1)
-            z1mass = z1mass[iperm.argmin()]
-            z2mass = z2mass[iperm.argmin()]
-            z11 = z11[iperm.argmin()].astype(int).astype(str)
-            z12 = z12[iperm.argmin()].astype(int).astype(str)
-            z21 = z21[iperm.argmin()].astype(int).astype(str)
-            z22 = z22[iperm.argmin()].astype(int).astype(str)
-            zzindex = zzindex[iperm.argmin()]
+
+            z1mass = z1mass[ijperm.argmin()]
+            z2mass = z2mass[ijperm.argmin()]
+            z11 = z11[ijperm.argmin()].astype(int).astype(str)
+            z12 = z12[ijperm.argmin()].astype(int).astype(str)
+            z21 = z21[ijperm.argmin()].astype(int).astype(str)
+            z22 = z22[ijperm.argmin()].astype(int).astype(str)
+            zzindex = zzindex[ijperm.argmin()]
+
             return zz[zzindex], z1mass, z2mass, z11, z12, z21, z22
 
 
@@ -685,12 +699,8 @@ class HZZProcessor(processor.ProcessorABC):
 
 
     def postprocess(self, accumulator):
-        lumis = {
-            '2016': 35920,
-            '2017': 41530,
-            '2018': 59740,
-        }
-        lumi = lumis[self._year]
+        # always scale to 1000 pb for plotting
+        lumi = 1000
         scale = {}
         for dataset, sumw in accumulator['sumw'].items():
             if not sumw: continue

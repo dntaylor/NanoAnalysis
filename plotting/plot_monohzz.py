@@ -8,7 +8,7 @@ blind = True
 
 from Plotter import Plotter
 
-year = '2018'
+year = '2017'
 
 # define the samples
 sampleMap = {
@@ -17,16 +17,19 @@ sampleMap = {
         'DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8',
     ],
     'TT': [
-        'TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8',
+        #'TTJets_TuneCP5_13TeV-amcatnloFXFX-pythia8',
+        'TTJets_TuneCP5_13TeV-madgraphMLM-pythia8',
     ],
     'ZZ': [
-        'ZZTo4L_13TeV_powheg_pythia8_TuneCP5',
+        #'ZZTo4L_13TeV_powheg_pythia8_TuneCP5',
+        'ZZTo4L_13TeV_powheg_pythia8',
     ],
     'ggZZ': [
         'GluGluToContinToZZTo2e2mu_13TeV_TuneCP5_MCFM701_pythia8',
         'GluGluToContinToZZTo2e2tau_13TeV_TuneCP5_MCFM701_pythia8',
         'GluGluToContinToZZTo2mu2tau_13TeV_TuneCP5_MCFM701_pythia8',
-        'GluGluToContinToZZTo4e_13TeV_TuneCP5_MCFM701_pythia8',
+        #'GluGluToContinToZZTo4e_13TeV_TuneCP5_MCFM701_pythia8',
+        'GluGluToContinToZZTo4e_13TeV_MCFM701_pythia8',
         'GluGluToContinToZZTo4mu_13TeV_TuneCP5_MCFM701_pythia8',
         'GluGluToContinToZZTo4tau_13TeV_MCFM701_pythia8',
     ],
@@ -43,7 +46,9 @@ sampleMap = {
         'SingleMuon',
         'DoubleMuon',
         'MuonEG',
-        'EGamma',
+        #'EGamma',
+        'DoubleEG',
+        'SingleElectron',
     ],
 }
 backgrounds = ['ggZZ','ZZ','HZZ']
@@ -71,7 +76,7 @@ styleMap = {
 }
 
 # setup plotter
-plotter = Plotter('MonoHZZ')
+plotter = Plotter('MonoHZZ',year)
 plotter.setStyleMap(styleMap)
 for bg in backgrounds: plotter.addSampleToStack(bg)
 for sig in signals: plotter.addSampleToPlot(sig)
@@ -121,6 +126,10 @@ for plot in plots:
                 hist = hist.Rebin(len(binning)-1,hname+'_rebin',binning)
             hists[s] = hist
             if s=='SIG': hists[s].Scale(0.001)
+        # scale the hists:
+        for s in hists:
+            if s=='DATA': continue
+            hists[s].Scale(float(plotter.intLumi)/1000)
         # send to plotter
         plotter.plot(hists, f'{chan}/{plot}', **plots[plot])
 
@@ -144,5 +153,9 @@ for plot in plots:
             hist = hist.Rebin(len(binning)-1,hname+'_rebin',binning)
         hists[s] = hist
         if s=='SIG': hists[s].Scale(0.001)
+    # scale the hists:
+    for s in hists:
+        if s=='DATA': continue
+        hists[s].Scale(float(plotter.intLumi)/1000)
     # send to plotter
     plotter.plot(hists, f'{plot}', **plots[plot])

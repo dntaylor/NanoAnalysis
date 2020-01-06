@@ -17,16 +17,22 @@ ROOT.gROOT.ProcessLine("gErrorIgnoreLevel = 2001;")
 tdrstyle.setTDRStyle()
 ROOT.gStyle.SetPalette(1)
 
+
+lumis = {
+    '2016': 35920,
+    '2017': 41530,
+    '2018': 59740,
+}
+
 class Plotter(object):
     '''Basic plotter utilities'''
 
-    def __init__(self,analysis,**kwargs):
+    def __init__(self,analysis,year,**kwargs):
         '''Initialize the plotter'''
         # plot directory
         self.analysis = analysis
-        #self.intLumi = kwargs.get('intLumi',35920) #2016
-        #self.intLumi = kwargs.get('intLumi',41530) #2017
-        self.intLumi = kwargs.get('intLumi',59740) #2018
+        self.year = year
+        self.intLumi = kwargs.get('intLumi',lumis[self.year])
         self.outputDirectory = kwargs.pop('outputDirectory','plots/{0}'.format(self.analysis))
         # initialize stuff
         self.j = 0
