@@ -244,9 +244,16 @@ def save_corrections(year):
     pileupRatioUp[mask] /= mcPileup[mask]
     pileupRatioDown[mask] /= mcPileup[mask]
     
-    corrections[f'pileupWeight{year}'] = lookup_tools.dense_lookup.dense_lookup(pileupRatio, edges)
-    corrections[f'pileupWeight{year}Up'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioUp, edges)
-    corrections[f'pileupWeight{year}Down'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioDown, edges)
+    corrections['pileupWeight'] = lookup_tools.dense_lookup.dense_lookup(pileupRatio, edges)
+    corrections['pileupWeightUp'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioUp, edges)
+    corrections['pileupWeightDown'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioDown, edges)
+
+
+    # rochester correction
+    tag = 'roccor.Run2.v3'
+    fname = f'data/rochester/{tag}/RoccoR{year}.txt'
+    corrections['rochester'] = lookup_tools.rochester_lookup.rochester_lookup(fname,loaduncs=True)
+
     
     save(corrections, f'corrections/corrections_{year}.coffea')
 

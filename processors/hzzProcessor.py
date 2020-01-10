@@ -335,11 +335,42 @@ class HZZProcessor(processor.ProcessorABC):
         output['cutflow']['good vertex'] += passGoodVertex.sum()
         selection.add('goodVertex',passGoodVertex)
 
+        # run rochester
+        rochester = self._corrections['rochester']
+        _charge = df['Muon_charge']
+        _pt = df['Muon_pt']
+        _eta = df['Muon_eta']
+        _phi = df['Muon_phi']
+        if self._isData:
+            _k = rochester.kScaleDT(_charge,_pt,_eta,_phi)
+            #_kErr = rochester.kScaleDTerror(_charge,_pt,_eta,_phi)
+        else:
+            # for default if gen present
+            _gid = df['Muon_genPartIdx']
+            _gpt = df['GenPart_pt']
+            # for backup w/o gen
+            _nl = df['Muon_nTrackerLayers']
+            _u = np.random.rand(*_pt.shape)
+            _hasgen = (_gid>=0)
+            _kspread = rochester.kSpreadMC(_charge[ _hasgen], _pt[ _hasgen], _eta[ _hasgen], _phi[ _hasgen], _gpt[_gid[_hasgen]])
+            _ksmear  = rochester.kSmearMC( _charge[~_hasgen], _pt[~_hasgen], _eta[~_hasgen], _phi[~_hasgen], _nl[~_hasgen], _u[~_hasgen])
+            _k = np.ones_like(_pt)
+            _k[_hasgen] = _kspread
+            _k[~_hasgen] = _ksmear
+            #_kErrspread = rochester.kSpreadMCerror(_charge[ _hasgen], _pt[ _hasgen], _eta[ _hasgen], _phi[ _hasgen], _gpt[_gid[_hasgen]])
+            #_kErrsmear  = rochester.kSmearMCerror( _charge[~_hasgen], _pt[~_hasgen], _eta[~_hasgen], _phi[~_hasgen], _nl[~_hasgen], _u[~_hasgen])
+            #_kErr = np.ones_like(_pt)
+            #_kErr[_hasgen] = _kErrspread
+            #_kErr[~_hasgen] = _kErrsmear
+
+        mask = _pt < 200
+        rochester_pt = _pt
+        rochester_pt[mask] = (_k * _pt)[mask]
 
         logging.debug('building muons')
         muons = JaggedCandidateArray.candidatesfromcounts(
             df['nMuon'],
-            pt=df['Muon_pt'],
+            pt=rochester_pt,
             eta=df['Muon_eta'],
             phi=df['Muon_phi'],
             mass=df['Muon_mass'],
@@ -632,9 +663,9 @@ class HZZProcessor(processor.ProcessorABC):
             output['sumw'][dataset] += df['genWeight'].sum()
             weights.add('genWeight',df['genWeight'])
             weights.add('pileupWeight',
-                        self._corrections[f'pileupWeight{self._year}'](df['Pileup_nPU']),
-                        self._corrections[f'pileupWeight{self._year}Up'](df['Pileup_nPU']),
-                        self._corrections[f'pileupWeight{self._year}Down'](df['Pileup_nPU']),
+                        self._corrections['pileupWeight'](df['Pileup_nPU']),
+                        self._corrections['pileupWeightUp'](df['Pileup_nPU']),
+                        self._corrections['pileupWeightDown'](df['Pileup_nPU']),
                         )
             # electron sf
             # gap: 1.442 1.566
