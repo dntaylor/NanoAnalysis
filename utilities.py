@@ -31,13 +31,15 @@ def which(program):
 
     return None
 
-def runCommand(command,verbose=False):
-    if verbose: logging.info(command)
+def runCommand(command):
+    logging.debug(command)
     return subprocess.Popen(command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT).communicate()[0]
 
 def get_das(query,verbose=False):
     command = 'dasgoclient -query "{}"'.format(query)
-    return [line.decode('utf-8') for line in runCommand(command,verbose=verbose).split()]
+    result = runCommand(command)
+    if verbose: logging.debug(result)
+    return [line.decode('utf-8') for line in result.split()]
 
 def load(fname):
     jname = '{}.json'.format(fname)

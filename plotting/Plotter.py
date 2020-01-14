@@ -295,7 +295,7 @@ class Plotter(object):
             canvas.SetLogy(logy)
             canvas.SetLogx(logx)
 
-        legend = self._getLegend(0.6,0.5,0.94,0.9)
+        legend = self._getLegend(0.65,0.7,0.94,0.92)
 
         stack = self._getStack(hists)
         hmaxes = [stack.GetMaximum()]

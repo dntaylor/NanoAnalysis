@@ -25,12 +25,14 @@ class DYProcessor(processor.ProcessorABC):
         self._year = year
 
         self._corrections = corrections
+        self._rochester = lookup_tools.rochester_lookup.rochester_lookup(corrections['rochester_data'])
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
         zmass_axis = hist.Bin("mass", r"$m_{2\ell}$ [GeV]", 240, 0, 120)
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
         met_axis = hist.Bin("met", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
+        npvs_axis = hist.Bin("npvs", "Number of Vertices", 120, 0, 120)
 
         self._selections = ['massWindow']
 
@@ -39,6 +41,7 @@ class DYProcessor(processor.ProcessorABC):
         for sel in self._selections:
             self._accumulator[sel + '_zmass'] = hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis)
             self._accumulator[sel + '_met'] = hist.Hist("Counts", dataset_axis, channel_axis, met_axis)
+            self._accumulator[sel + '_pileup'] = hist.Hist("Counts", dataset_axis, channel_axis, npvs_axis)
 
         self._accumulator['cutflow'] = processor.defaultdict_accumulator(int)
         self._accumulator['sumw'] = processor.defaultdict_accumulator(int)
@@ -85,35 +88,33 @@ class DYProcessor(processor.ProcessorABC):
         # DoubleMuon
         if self._year=='2016':
             triggerPaths['DoubleMuon'] = [
-                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ",
-                "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ",
-                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL",
-                "HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL",
+                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ",
+                #"HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ",
             ]
         elif self._year=='2017':
             triggerPaths['DoubleMuon'] = [
-                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
-                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8",
+                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
+                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8",
             ]
         elif self._year=='2018':
             triggerPaths['DoubleMuon'] = [
-                "HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
+                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
             ]
 
         # DoubleEG
         if self._year=='2016':
             triggerPaths['DoubleEG'] = [
-                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
+                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
             ]
         elif self._year=='2017':
             triggerPaths['DoubleEG'] = [
-                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
             ]
 
         # EGamma
         if self._year=='2018':
             triggerPaths['EGamma'] = [
-                "HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
                 "HLT_Ele32_WPTight_Gsf",
             ]
 
@@ -152,16 +153,16 @@ class DYProcessor(processor.ProcessorABC):
         # in MC, all triggers are accepted
         if self._year=='2016' or self._year=='2017':
             triggerPriority = [
-                'DoubleMuon',
-                'DoubleEG',
+                #'DoubleMuon',
+                #'DoubleEG',
                 'SingleMuon',
                 'SingleElectron',
             ]
         else:
             triggerPriority = [
-                'DoubleMuon',
-                'EGamma',
+                #'DoubleMuon',
                 'SingleMuon',
+                'EGamma',
             ]
 
         triggersToAccept = []
@@ -229,7 +230,7 @@ class DYProcessor(processor.ProcessorABC):
 
 
         # run rochester
-        rochester = self._corrections['rochester']
+        rochester = self._rochester
         _muon_offsets = JaggedArray.counts2offsets(df['nMuon'])
         _charge = JaggedArray.fromoffsets(_muon_offsets, df['Muon_charge'])
         _pt     = JaggedArray.fromoffsets(_muon_offsets, df['Muon_pt'])
@@ -476,6 +477,12 @@ class DYProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     channel=chan,
                     met=df['MET_pt'][cut],
+                    weight=weight[cut].flatten(),
+                )
+                output[sel+'_pileup'].fill(
+                    dataset=dataset,
+                    channel=chan,
+                    npvs=df['PV_npvs'][cut],
                     weight=weight[cut].flatten(),
                 )
 

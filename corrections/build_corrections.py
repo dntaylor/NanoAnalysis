@@ -252,7 +252,7 @@ def save_corrections(year):
     # rochester correction
     tag = 'roccor.Run2.v3'
     fname = f'data/rochester/{tag}/RoccoR{year}.txt'
-    corrections['rochester'] = lookup_tools.rochester_lookup.rochester_lookup(fname,loaduncs=True)
+    corrections['rochester_data'] = lookup_tools.txt_converters.convert_rochester_file(fname,loaduncs=True)
 
     
     save(corrections, f'corrections/corrections_{year}.coffea')

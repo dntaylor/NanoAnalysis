@@ -28,6 +28,7 @@ class HZZProcessor(processor.ProcessorABC):
         self._year = year
 
         self._corrections = corrections
+        self._rochester = lookup_tools.rochester_lookup.rochester_lookup(corrections['rochester_data'])
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
@@ -35,6 +36,7 @@ class HZZProcessor(processor.ProcessorABC):
         zmass_axis = hist.Bin("mass", r"$m_{2\ell}$ [GeV]", 240, 0, 120)
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
         met_axis = hist.Bin("met", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
+        npvs_axis = hist.Bin("npvs", "Number of Vertices", 120, 0, 120)
 
         self._selections = ['hzz','massWindow']
 
@@ -45,6 +47,7 @@ class HZZProcessor(processor.ProcessorABC):
             self._accumulator[sel + '_z1mass'] = hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis)
             self._accumulator[sel + '_z2mass'] = hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis)
             self._accumulator[sel + '_met'] = hist.Hist("Counts", dataset_axis, channel_axis, met_axis)
+            self._accumulator[sel + '_pileup'] = hist.Hist("Counts", dataset_axis, channel_axis, npvs_axis)
 
         self._accumulator['cutflow'] = processor.defaultdict_accumulator(int)
         self._accumulator['sumw'] = processor.defaultdict_accumulator(int)
@@ -336,7 +339,7 @@ class HZZProcessor(processor.ProcessorABC):
         selection.add('goodVertex',passGoodVertex)
 
         # run rochester
-        rochester = self._corrections['rochester']
+        rochester = self._rochester
         _muon_offsets = JaggedArray.counts2offsets(df['nMuon'])
         _charge = JaggedArray.fromoffsets(_muon_offsets, df['Muon_charge'])
         _pt     = JaggedArray.fromoffsets(_muon_offsets, df['Muon_pt'])
@@ -727,6 +730,12 @@ class HZZProcessor(processor.ProcessorABC):
                     dataset=dataset,
                     channel=chan,
                     met=df['MET_pt'][cut],
+                    weight=weight[cut].flatten(),
+                )
+                output[sel+'_pileup'].fill(
+                    dataset=dataset,
+                    channel=chan,
+                    npvs=df['PV_npvs'][cut],
                     weight=weight[cut].flatten(),
                 )
 

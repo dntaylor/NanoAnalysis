@@ -17,6 +17,8 @@ def plot(year):
     data = 'DATA'
     signals = []
     sampleMap = { s: get_sample_list(base,year,s) for s in backgrounds+signals+[data] }
+
+    print(sampleMap)
     
     # load the tfiles
     channels = ['ee','mm']

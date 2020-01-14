@@ -3,10 +3,13 @@ import os
 import json
 import subprocess
 from utilities import load, dump, get_das
+import logging
 
 
 update = True # requery everything
-verbose = True
+verbose = False
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 # NanoAODv6
 nano_tag = 'Nano25Oct2019'
@@ -54,10 +57,13 @@ def get_data(update=False,verbose=False):
 get_data(update,verbose)
 
 # mc
+# note: this doesnt get the "new_pmx" or weirdly named "ext" samples... maybe okay?
+# for example: RunIIFall17NanoAODv6-PU2017_12Apr2018_Nano25Oct2019_ext_102X_mc2017_realistic_v7
+#              RunIIFall17NanoAODv6-PU2017_12Apr2018_Nano25Oct2019_new_pmx_102X_mc2017_realistic_v7
 year_tags = {
-    '2016': 'RunIISummer16NanoAODv6',
-    '2017': 'RunIIFall17NanoAODv6',
-    '2018': 'RunIIAutumn18NanoAODv6',
+    '2016': f'RunIISummer16NanoAODv6-PUMoriond17_{nano_tag}_102X_mcRun2_asymptotic_v7',
+    '2017': f'RunIIFall17NanoAODv6-PU2017_12Apr2018_{nano_tag}_102X_mc2017_realistic_v7',
+    '2018': f'RunIIAutumn18NanoAODv6-{nano_tag}_102X_upgrade2018_realistic_v20',
 }
 
 # datasets (note, tune changes between 2016 and 2017/2018, but not always)
@@ -142,13 +148,14 @@ def get_mc(update=False,verbose=False):
     for year in year_tags:
         if year not in result: result[year] = {}
         for dataset in datasets:
-            query = 'dataset dataset=/{}/{}*{}*/NANOAODSIM'.format(dataset,year_tags[year],nano_tag)
+            query = 'dataset dataset=/{}/{}*/NANOAODSIM'.format(dataset,year_tags[year])
             samples = get_das(query,verbose=verbose)
             if not samples: continue
             if dataset not in result[year]: result[year][dataset] = {}
             sampleMap = result[year][dataset].get('files',{})
             for sample in samples:
                 if not update and sample in sampleMap: continue
+                if 'Validation error' in sample: continue
                 query = 'file dataset={}'.format(sample)
                 sampleMap[sample] = get_das(query,verbose=verbose)
     
