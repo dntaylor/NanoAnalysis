@@ -17,9 +17,8 @@ def plot(year):
     data = 'DATA'
     signals = []
     sampleMap = { s: get_sample_list(base,year,s) for s in backgrounds+signals+[data] }
-
     print(sampleMap)
-    
+
     # load the tfiles
     channels = ['ee','mm']
     tfiles = {}
@@ -46,6 +45,7 @@ def plot(year):
     plots = {
         'mz1'       : {'hPath': '{sample}_{chan}_massWindow_zmass',        'xlabel': 'm_{ll} (GeV)',       'binning': range(60,120,1),         'ylabel': 'Events / 1 GeV', 'logx': False, 'logy': False,},
         'met'       : {'hPath': '{sample}_{chan}_massWindow_met',          'xlabel': 'E_{T}^{miss} (GeV)', 'binning': range(0,420,20),         'ylabel': 'Events / 20 GeV','logx': False, 'logy': True, 'ymin':0.1,},
+        'pileup'    : {'hPath': '{sample}_{chan}_massWindow_pileup',       'xlabel': 'Number of reconstructed vertices', 'binning': range(0,120,1), 'ylabel': 'Events',    'logx': False, 'logy': False,},
     }
     
     def sumHists(name,*hists):

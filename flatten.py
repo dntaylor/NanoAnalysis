@@ -15,8 +15,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     for fname in args.fnames:
-        print(f'Converting {fname}')
         outname = fname.replace('.coffea','.root')
+        try:
+            if os.path.getmtime(fname)<os.path.getmtime(outname):
+                continue
+        except FileNotFoundError:
+            pass
+        print(f'Converting {fname}')
         hists = load(fname)
 
         if os.path.exists(outname):

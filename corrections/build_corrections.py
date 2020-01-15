@@ -221,28 +221,36 @@ def save_corrections(year):
 
     
     # pileup
-    with uproot.open(f'data/pileup/dataPileup{year}.root') as f:
-        norm = lambda x: x/x.sum()
-        edges = f['pileup'].edges
-        dataPileup = norm(f['pileup'].values)
-        dataPileupUp = norm(f['pileup_plus'].values)
-        dataPileupDown = norm(f['pileup_minus'].values)
-    with uproot.open(f'data/pileup/mcPileup{year}.root') as f:
-        mcPileup = f['pu_mc'].values
-    def zeropad(a,n):
-        _a = np.zeros(n)
-        _a[:len(a)] = a
-        return _a
-    nmax = max(len(dataPileup),len(mcPileup))
-    dataPileup = zeropad(dataPileup,nmax)
-    mcPileup = zeropad(mcPileup,nmax)
-    mask = (mcPileup>0)
-    pileupRatio = dataPileup.copy()
-    pileupRatioUp = dataPileupUp.copy()
-    pileupRatioDown = dataPileupDown.copy()
-    pileupRatio[mask] /= mcPileup[mask]
-    pileupRatioUp[mask] /= mcPileup[mask]
-    pileupRatioDown[mask] /= mcPileup[mask]
+    # from NanoAOD tools
+    # 2016 has a bug
+    #with uproot.open(f'data/pileup/dataPileup{year}.root') as f:
+    #    norm = lambda x: x/x.sum()
+    #    edges = f['pileup'].edges
+    #    dataPileup = norm(f['pileup'].values)
+    #    dataPileupUp = norm(f['pileup_plus'].values)
+    #    dataPileupDown = norm(f['pileup_minus'].values)
+    #with uproot.open(f'data/pileup/mcPileup{year}.root') as f:
+    #    mcPileup = f['pu_mc'].values
+    #def zeropad(a,n):
+    #    _a = np.zeros(n)
+    #    _a[:len(a)] = a
+    #    return _a
+    #nmax = max(len(dataPileup),len(mcPileup))
+    #dataPileup = zeropad(dataPileup,nmax)
+    #mcPileup = zeropad(mcPileup,nmax)
+    #mask = (mcPileup>0)
+    #pileupRatio = dataPileup.copy()
+    #pileupRatioUp = dataPileupUp.copy()
+    #pileupRatioDown = dataPileupDown.copy()
+    #pileupRatio[mask] /= mcPileup[mask]
+    #pileupRatioUp[mask] /= mcPileup[mask]
+    #pileupRatioDown[mask] /= mcPileup[mask]
+    # from HZZ
+    with uproot.open(f'data/pileup/pu_weights_{year}.root') as f:
+        edges = f['weights'].edges
+        pileupRatio = f['weights'].values
+        pileupRatioUp = f['weights_varUp'].values
+        pileupRatioDown = f['weights_varDn'].values
     
     corrections['pileupWeight'] = lookup_tools.dense_lookup.dense_lookup(pileupRatio, edges)
     corrections['pileupWeightUp'] = lookup_tools.dense_lookup.dense_lookup(pileupRatioUp, edges)
