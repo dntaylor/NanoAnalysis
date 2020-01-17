@@ -330,6 +330,9 @@ class HZZProcessor(processor.ProcessorABC):
         passHLT = df['passHLT']
         selection.add('trigger',passHLT)
         output['cutflow']['pass trigger'] += passHLT.sum()
+        # if no trigger: fast return
+        if passHLT.sum()==0:
+            return output
 
         
         # require one good vertex

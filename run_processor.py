@@ -27,6 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', default='', help='Output histogram filename')
     parser.add_argument('-j', '--workers', type=int, default=1, help='Number of workers to use for multi-worker executors (e.g. futures or condor) (default: %(default)s)')
     parser.add_argument('-n', '--maxfiles', type=int, default=-1, help='Maximum number of files to process')
+    parser.add_argument('-r', '--retries', type=int, default=0, help='Number of retries before failing')
     scheduler = parser.add_mutually_exclusive_group()
     scheduler.add_argument('--dask', action='store_true', help='Use dask to distribute')
     scheduler.add_argument('--parsl', action='store_true', help='Use parsl to distribute')
@@ -80,7 +81,7 @@ if __name__ == '__main__':
     executor_args = {
         'savemetrics': True, 'flatten':True, 
         'desc': f'Processing {args.baseprocessor} {args.year} {dataset}',
-        'retries': 1, 'skipbadfiles': True, 'xrootdtimeout':120,
+        'retries': args.retries, 'skipbadfiles': True, 'xrootdtimeout':120,
         'tailtimeout': 600,
     }
     pre_args = {

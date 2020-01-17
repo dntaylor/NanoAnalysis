@@ -10,40 +10,30 @@ from Plotter import Plotter
 from samples import get_sample_list
 
 def plot(year):
-    base = 'hzzProcessor'
-    
-    backgrounds = ['ggZZ','qqZZ','HZZ']
+    base = 'mmProcessor'
+
+    # define the samples
+    backgrounds = []
     data = 'DATA'
     signals = []
-    
     sampleMap = { s: get_sample_list(base,year,s) for s in backgrounds+signals+[data] }
     print(sampleMap)
-    
+
     # load the tfiles
-    channels = ['2m2e','2e2m','4e','4m']
+    channels = ['mm']
     tfiles = {}
     for s in sampleMap:
-        if None in sampleMap[s]:
-            sampleMap[s] = [x for x in sampleMap[s] if x is not None]
-            print(f'Warning: missing samples for {s}')
         for sample in sampleMap[s]:
-            tfiles[sample] = ROOT.TFile.Open(f'hists/hzzProcessor/{year}/{sample}.root')
+            # TODO: we can keep this in the sample map builder
+            tfiles[sample] = ROOT.TFile.Open(f'hists/{base}/{year}/{sample}.root')
     
     # styles for plots
     styleMap = {
-        'TT'  : {'label': 't#bar{t}',                             'linecolor': ROOT.kGreen+3,   'fillcolor': ROOT.kGreen+3,},
-        'TTV' : {'label': 't#bar{t}V',                            'linecolor': ROOT.kGreen+4,   'fillcolor': ROOT.kGreen+4,},
-        'Z'   : {'label': 'Z+X',                                  'linecolor': ROOT.kGreen+2,   'fillcolor': ROOT.kGreen+2,},
-        'ggZZ': {'label': 'gg#rightarrowZZ, Z#gamma*',            'linecolor': ROOT.kBlue,      'fillcolor': ROOT.kBlue,},
-        'qqZZ': {'label': 'q#bar{q}#rightarrowZZ, Z#gamma*',      'linecolor': ROOT.kAzure+6,   'fillcolor': ROOT.kAzure+6,},
-        'HWW' : {'label': 'H(125)#rightarrowWW#rightarrow2l2#nu', 'linecolor': ROOT.kRed+2,     'fillcolor': ROOT.kRed+2,},
-        'HZZ' : {'label': 'H(125)#rightarrowZZ#rightarrow4l',     'linecolor': ROOT.kRed+1,     'fillcolor': ROOT.kRed+1,},
-        'SIG' : {'label': '2HDM+a',                               'linecolor': ROOT.kMagenta+1,},
         'DATA': {'label': 'Observed',}
     }
     
     # setup plotter
-    plotter = Plotter('MonoHZZ',year)
+    plotter = Plotter('MuMu',year)
     plotter.setStyleMap(styleMap)
     for bg in backgrounds: plotter.addSampleToStack(bg)
     for sig in signals: plotter.addSampleToPlot(sig)
@@ -51,14 +41,10 @@ def plot(year):
     
     # plot
     plots = {
-        'm4l'       : {'hPath': '{sample}_{chan}_hzz_mass',         'xlabel': 'm_{4l} (GeV)',       'binning': range(70,500,4),         'ylabel': 'Events / 4 GeV', 'logx': False, 'logy': False,},
-        'm4l_zoom'  : {'hPath': '{sample}_{chan}_hzz_mass',         'xlabel': 'm_{4l} (GeV)',       'binning': range(70,170,2),         'ylabel': 'Events / 2 GeV', 'logx': False, 'logy': False,},
-        'm4l_full'  : {'hPath': '{sample}_{chan}_massWindow_mass',  'xlabel': 'm_{4l} (GeV)',       'binning': range(113,135,3),        'ylabel': 'Events / 3 GeV', 'logx': False, 'logy': False, 'blind':blind,},
-        'mz1'       : {'hPath': '{sample}_{chan}_hzz_z1mass',       'xlabel': 'm_{ll} (GeV)',       'binning': range(40,120,1),         'ylabel': 'Events / 1 GeV', 'logx': False, 'logy': False,},
-        'mz2'       : {'hPath': '{sample}_{chan}_hzz_z2mass',       'xlabel': 'm_{ll} (GeV)',       'binning': range(12,120,1),         'ylabel': 'Events / 1 GeV', 'logx': False, 'logy': False,},
-        'met'       : {'hPath': '{sample}_{chan}_hzz_met',          'xlabel': 'E_{T}^{miss} (GeV)', 'binning': range(0,420,20),         'ylabel': 'Events / 20 GeV','logx': False, 'logy': True, 'ymin':0.1,},
-        'met_limit' : {'hPath': '{sample}_{chan}_massWindow_met',   'xlabel': 'E_{T}^{miss} (GeV)', 'binning': [0,25,50,200,500,1000],  'ylabel': 'Events',         'logx': False, 'logy': True, 'ymin':0.1, 'blind':blind,},
-        'pileup'    : {'hPath': '{sample}_{chan}_hzz_pileup',       'xlabel': 'Number of reconstructed vertices', 'binning': range(0,120,1), 'ylabel': 'Events',    'logx': False, 'logy': False,},
+        'mll'       : {'hPath': '{sample}_{chan}_iso_mass',         'xlabel': 'm_{#mu#mu} (GeV)',       'binning': [x*0.1 for x in range(25,625,1)],          'ylabel': 'Events / 100 MeV', 'logx': False, 'logy': True, 'plotratio': False,},
+        'jpsi'      : {'hPath': '{sample}_{chan}_iso_mass',         'xlabel': 'm_{#mu#mu} (GeV)',       'binning': [x*0.01 for x in range(250,450,1)],        'ylabel': 'Events / 10 MeV',  'logx': False, 'logy': True, 'plotratio': False,},
+        'upsilon'   : {'hPath': '{sample}_{chan}_iso_mass',         'xlabel': 'm_{#mu#mu} (GeV)',       'binning': [x*0.01 for x in range(600,1400,1)],       'ylabel': 'Events / 10 MeV',  'logx': False, 'logy': False, 'plotratio': False,},
+        'pileup'    : {'hPath': '{sample}_{chan}_iso_pileup',       'xlabel': 'Number of reconstructed vertices', 'binning': range(0,120,1), 'ylabel': 'Events',           'logx': False, 'logy': False, 'plotratio': False,},
     }
     
     def sumHists(name,*hists):

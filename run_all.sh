@@ -19,7 +19,9 @@ function finishJobs {
     done
 }
 
-for baseProcessor in hzzProcessor dyProcessor; do
+for proc in processors/*.py; do
+    procpy=`basename $proc`
+    baseProcessor="${procpy%.*}"
     for year in 2016 2017 2018; do
         processor=processors/${baseProcessor}_${year}.coffea
         for fileset in filesets/$year/*.json; do
@@ -42,7 +44,7 @@ for baseProcessor in hzzProcessor dyProcessor; do
             njobs=$((nfiles/2+1))
             waitForJobs
             #echo "Launching" $baseProcessor $year $dataset
-            ./run_processor.py -j $njobs --parsl --condor $baseProcessor $year $fileset &
+            ./run_processor.py -j $njobs -r 1 --parsl --condor $baseProcessor $year $fileset &
             # sleep for a while so that the new parsl run can start
             sleep 20
         done

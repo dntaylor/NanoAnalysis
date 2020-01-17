@@ -15,11 +15,11 @@ from awkward import JaggedArray, IndexedArray
 
 ZMASS = 91.1876
 
-logger = logging.getLogger("MonoDYProcessor")
+logger = logging.getLogger("MonoMMProcessor")
 logging.basicConfig(level=logging.INFO, stream=sys.stderr,format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 
-class DYProcessor(processor.ProcessorABC):
+class MMProcessor(processor.ProcessorABC):
 
     def __init__(self,year='2018',corrections={}):
         self._year = year
@@ -29,19 +29,17 @@ class DYProcessor(processor.ProcessorABC):
 
         dataset_axis = hist.Cat("dataset", "Primary dataset")
         channel_axis = hist.Cat("channel", "Channel")
-        zmass_axis = hist.Bin("mass", r"$m_{2\ell}$ [GeV]", 240, 0, 120)
+        mass_axis = hist.Bin("mass", r"$m_{2\ell}$ [GeV]", 6000, 2.5, 62.5)
         pt_axis = hist.Bin("pt", r"$p_{T,\ell}$ [GeV]", 3000, 0.25, 300)
-        met_axis = hist.Bin("met", r"$E_{T}^{miss}$ [GeV]", 3000, 0, 3000)
         npvs_axis = hist.Bin("npvs", "Number of Vertices", 120, 0, 120)
 
-        self._selections = ['massWindow']
+        self._selections = ['iso','antiiso']
 
         hist.Hist.DEFAULT_DTYPE = 'f'  # save some space by keeping float bin counts instead of double
         self._accumulator = processor.dict_accumulator()
         for sel in self._selections:
-            self._accumulator[sel + '_zmass'] = hist.Hist("Counts", dataset_axis, channel_axis, zmass_axis)
-            self._accumulator[sel + '_met'] = hist.Hist("Counts", dataset_axis, channel_axis, met_axis)
-            self._accumulator[sel + '_pileup'] = hist.Hist("Counts", dataset_axis, channel_axis, npvs_axis)
+            self._accumulator['_'.join([sel, 'mass'])] = hist.Hist("Counts", dataset_axis, channel_axis, mass_axis)
+            self._accumulator['_'.join([sel, 'pileup'])] = hist.Hist("Counts", dataset_axis, channel_axis, npvs_axis)
 
         self._accumulator['cutflow'] = processor.defaultdict_accumulator(int)
         self._accumulator['sumw'] = processor.defaultdict_accumulator(int)
@@ -54,70 +52,26 @@ class DYProcessor(processor.ProcessorABC):
     def _add_muon_id(self, muons):
         # note: input muons must pass
         # slimmedMuons and (pt > 3 && (passed('CutBasedIdLoose') || passed('SoftCutBasedId') || passed('SoftMvaId') || passed('CutBasedIdGlobalHighPt') || passed('CutBasedIdTrkHighPt')))
-        ptCut = (muons.pt>20)
+        ptCut = (muons.pt>3)
         etaCut = (abs(muons.eta)<2.4)
         dxyCut = (abs(muons.dxy)<0.5)
         dzCut = (abs(muons.dz)<1)
-        idCut = (muons.mediumId)
+        idCut = (muons.looseId)
 
         idNoIsoCut = (ptCut & etaCut & dxyCut & dzCut & idCut)
 
-        isoCut = (muons.pfRelIso04_all<0.15)
+        isoCut = (muons.pfRelIso04_all<0.25)
 
         idIsoCut = (idNoIsoCut & isoCut)
 
-        muons['passId'] = idIsoCut
-        
-    def _add_electron_id(self, electrons):
-        # note: input electrons must pass
-        # slimmedElectrons and (pt > 5)
-        ptCut = (electrons.pt>20)
-        etaCut = (abs(electrons.eta)<2.5)
-        dxyCut = (abs(electrons.dxy)<0.5)
-        dzCut = (abs(electrons.dz)<1)
-        idCut = (electrons.mvaFall17V2Iso_WP90)
-
-        loose = (ptCut & etaCut & dxyCut & dzCut & idCut)
-
-        electrons['passId'] = loose
+        muons['passId'] = idNoIsoCut
+        muons['passIso'] = isoCut
+        muons['passIdIso'] = idIsoCut
         
     def _add_trigger(self,df):
         dataset = df['dataset']
 
         triggerPaths = {}
-        # DoubleMuon
-        if self._year=='2016':
-            triggerPaths['DoubleMuon'] = [
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ",
-                #"HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ",
-            ]
-        elif self._year=='2017':
-            triggerPaths['DoubleMuon'] = [
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8",
-            ]
-        elif self._year=='2018':
-            triggerPaths['DoubleMuon'] = [
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
-            ]
-
-        # DoubleEG
-        if self._year=='2016':
-            triggerPaths['DoubleEG'] = [
-                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
-            ]
-        elif self._year=='2017':
-            triggerPaths['DoubleEG'] = [
-                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
-            ]
-
-        # EGamma
-        if self._year=='2018':
-            triggerPaths['EGamma'] = [
-                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
-                "HLT_Ele32_WPTight_Gsf",
-            ]
-
 
         # SingleMuon
         if self._year=='2016':
@@ -127,21 +81,12 @@ class DYProcessor(processor.ProcessorABC):
             ]
         elif self._year=='2017':
             triggerPaths['SingleMuon'] = [
+                #"HLT_IsoMu24", # TODO: partially prescaled, check if lower pt threshold is better
                 "HLT_IsoMu27",
             ]
         elif self._year=='2018':
             triggerPaths['SingleMuon'] = [
                 "HLT_IsoMu24",
-            ]
-
-        # SingleElectron
-        if self._year=='2016':
-            triggerPaths['SingleElectron'] = [
-                "HLT_Ele27_WPTight_Gsf",
-            ]
-        elif self._year=='2017':
-            triggerPaths['SingleElectron'] = [
-                "HLT_Ele35_WPTight_Gsf",
             ]
 
 
@@ -151,19 +96,9 @@ class DYProcessor(processor.ProcessorABC):
         # and all higher datasets triggers are vetoed
         # no lower datasets triggers are looked at
         # in MC, all triggers are accepted
-        if self._year=='2016' or self._year=='2017':
-            triggerPriority = [
-                #'DoubleMuon',
-                #'DoubleEG',
-                'SingleMuon',
-                'SingleElectron',
-            ]
-        else:
-            triggerPriority = [
-                #'DoubleMuon',
-                'SingleMuon',
-                'EGamma',
-            ]
+        triggerPriority = [
+            'SingleMuon',
+        ]
 
         triggersToAccept = []
         triggersToVeto = []
@@ -201,7 +136,6 @@ class DYProcessor(processor.ProcessorABC):
 
         selection = processor.PackedSelection()
 
-        # TODO: instead of cutflow, use processor.PackedSelection
         output['cutflow']['all events'] += df['event'].size
 
         logging.debug('applying lumi mask')
@@ -278,136 +212,109 @@ class DYProcessor(processor.ProcessorABC):
             charge=df['Muon_charge'],
             dxy=df['Muon_dxy'],
             dz=df['Muon_dz'],
-            mediumId=df['Muon_mediumId'],
+            looseId=df['Muon_looseId'],
             pfRelIso04_all=df['Muon_pfRelIso04_all'],
             pdgId=df['Muon_pdgId'],
         )
 
-        logging.debug('building electrons')
-        electrons = JaggedCandidateArray.candidatesfromcounts(
-            df['nElectron'],
-            pt=df['Electron_pt'],
-            eta=df['Electron_eta'],
-            phi=df['Electron_phi'],
-            mass=df['Electron_mass'],
-            charge=df['Electron_charge'],
-            dxy=df['Electron_dxy'],
-            dz=df['Electron_dz'],
-            deltaEtaSC=df['Electron_deltaEtaSC'],
-            etaSC=df['Electron_eta']+df['Electron_deltaEtaSC'],
-            mvaFall17V2Iso_WP90=df['Electron_mvaFall17V2Iso_WP90'],
-            pdgId=df['Electron_pdgId'],
-        )
-
         logging.debug('adding muon id')
         self._add_muon_id(muons)
-        logging.debug('adding electron id')
-        self._add_electron_id(electrons)
 
         logging.debug('selecting muons')
         muonId = (muons.passId>0)
         muons = muons[muonId]
 
-        logging.debug('selecting electrons')
-        electronId = (electrons.passId>0)
-        electrons = electrons[electronId]
-
-        passTwoLeptons = (muons.counts >= 2) | (electrons.counts >= 2)
+        passTwoLeptons = (muons.counts >= 2)
         output['cutflow']['two leptons'] += passTwoLeptons.sum()
         selection.add('twoLeptons',passTwoLeptons)
 
         
-        # build cands
-        # remake z to have same columns
-        # pt eta phi mass charge pdgId
-        logging.debug('rebuilding leptons')
-        def rebuild(leptons):
-            return JaggedCandidateArray.candidatesfromoffsets(
-                leptons.offsets,
-                pt=leptons.pt.flatten(),
-                eta=leptons.eta.flatten(),
-                phi=leptons.phi.flatten(),
-                mass=leptons.mass.flatten(),
-                charge=leptons.charge.flatten(),
-                pdgId=leptons.pdgId.flatten(),
-                # needed for electron SF
-                etaSC=leptons.etaSC.flatten() if hasattr(leptons,'etaSC') else leptons.eta.flatten(),
-            )
-        newMuons = rebuild(muons)
-        newElectrons = rebuild(electrons)
-
-
         logging.debug('building 2 leptons')
-        ee_cands = newElectrons.choose(2)
-        mm_cands = newMuons.choose(2)
-        
-        # combine them
-        z_cands = JaggedArray.concatenate([ee_cands,mm_cands], axis=1)
+        mm_cands = muons.choose(2)
 
-        def bestcombination(zcands):
-            good_charge = sum(zcands[str(i)]['charge'] for i in range(2)) == 0
-            # this keeps the first z cand in each event
+        # pt sort
+        l1 = np.zeros_like(mm_cands['p4'].pt.flatten(), dtype='i')
+        l2 = np.ones_like(mm_cands['p4'].pt.flatten(), dtype='i')
+        l1[(mm_cands['0']['p4'].pt.flatten()<mm_cands['1']['p4'].pt.flatten())] = 1
+        l2[(mm_cands['0']['p4'].pt.flatten()<mm_cands['1']['p4'].pt.flatten())] = 0
+        l1 = JaggedArray.fromoffsets(mm_cands.offsets, l1)
+        l2 = JaggedArray.fromoffsets(mm_cands.offsets, l2)
+
+        # TODO: figure this out....
+        # for now, lets assume it is pt sorted already
+        def reorder(cands,*ls):
+            for ni in range(len(ls)):
+                for oi in range(len(ls)):
+                    if oi<=ni: continue
+                    mask = (ls[oi].content==ni)
+                    cands[str(ni)].content[mask], cands[str(oi)].content[mask] = cands[str(oi)].content[mask], cands[str(ni)].content[mask]
+            return cands
+        #mm_cands = reorder(mm_cands,l1,l2)
+        
+        def bestcombination(cands):
+            # OS
+            good_charge = sum(cands[str(i)]['charge'] for i in range(2)) == 0
+            cands = cands[good_charge]
+
+            # loose mass window
+            mass_window = ((cands['p4'].mass>2.5) & (cands['p4'].mass<62.5))
+            cands = cands[mass_window]
+
+            # isolate l1
+            l1_iso = (cands['0'].passIso > 0)
+            cands = cands[l1_iso]
+
+            # pt threshold
+            l1pt = cands['0']['p4'].pt
+            l2pt = cands['1']['p4'].pt
+            # TODO: special handling for 2017, remove if we find lower threshold is better
+            if self._year == '2017':
+                pass_pt = ((l1pt>29) & (l2pt>3))
+            else:
+                pass_pt = ((l1pt>26) & (l2pt>3))
+            cands = cands[pass_pt]
+
+            # match l1 to trigger
+            # for muons: TrigObj_id == 13
+            # for IsoMu: TrigObj_filterBits && 1 << 1 && 1 << 3 # 0 = TrkIsoVVL, 1 = Iso, 3 = 1mu, 10 = 1mu (Mu50), 11 = 1mu (Mu100)
+            # will default mass to muon, since filter anyway
+            TrigObj_mass = np.ones_like(df['TrigObj_pt']) * 0.1057
+            hltmuons = JaggedCandidateArray.candidatesfromcounts(
+                df['nTrigObj'],
+                pt=df['TrigObj_pt'],
+                eta=df['TrigObj_eta'],
+                phi=df['TrigObj_phi'],
+                mass=TrigObj_mass,
+                id=df['TrigObj_id'],
+                filterBits=df['TrigObj_filterBits'],
+            )
+            hltmuons = hltmuons[(hltmuons.id == 13)]
+            hltmuons = hltmuons[(hltmuons.filterBits & (1 << 1) & (1 << 3))] # IsoMu
+            l1p4 = cands['0']['p4']
+            hltp4 = hltmuons['p4']
+            l1_hlt = l1p4.cross(hltp4, nested=True)
+            matched_hlt = (l1_hlt['0'].delta_r(l1_hlt['1']) < 0.1).any()
+            cands = cands[matched_hlt]
+
+            # this keeps the first cand in each event
             # should instead sort the best first
             # TODO: select best
-            zcands = zcands[good_charge][:,:1]
-            return zcands
+            cands = cands[:,:1]
+            return cands
 
 
         logging.debug('selecting best combinations')
-        z_cands = bestcombination(z_cands)
+        mm_cands = bestcombination(mm_cands)
 
-        z1 = np.zeros_like(z_cands['p4'].pt.flatten(), dtype='i')
-        z2 = np.ones_like(z_cands['p4'].pt.flatten(), dtype='i')
-        z1[(z_cands['0']['p4'].pt.flatten()<z_cands['1']['p4'].pt.flatten())] = 1
-        z2[(z_cands['0']['p4'].pt.flatten()<z_cands['1']['p4'].pt.flatten())] = 0
-        z1 = JaggedArray.fromoffsets(z_cands.offsets, z1)
-        z2 = JaggedArray.fromoffsets(z_cands.offsets, z2)
+        passMMCand = (mm_cands.counts>0)
+        output['cutflow']['mm cand'] += passMMCand.sum()
+        selection.add('mmCand',passMMCand)
 
-        passZCand = (z_cands.counts>0)
-        output['cutflow']['z cand'] += passZCand.sum()
-        selection.add('zCand',passZCand)
-
-        passMassWindow = (passZCand & z_cands[((z_cands.p4.mass>60) & (z_cands.p4.mass<120))].counts>0)
-        output['cutflow']['mass window'] += passMassWindow.sum()
-        selection.add('massWindow',passMassWindow)
-
-        # im sure there is a better way, but for now just do this
-        def get_lepton_values(zl,key):
-            val = np.zeros_like(zl.flatten(),dtype=float)
-            if len(val)==0:
-                return JaggedArray.fromoffsets(zl.offsets,val) 
-            for i in range(2):
-                mask = (i==zl.flatten())
-                if key=='pt':
-                    val[mask] = z_cands[passZCand][str(i)].flatten()[mask]['p4'].pt
-                elif key=='eta':
-                    val[mask] = z_cands[passZCand][str(i)].flatten()[mask]['p4'].eta
-                elif key=='phi':
-                    val[mask] = z_cands[passZCand][str(i)].flatten()[mask]['p4'].phi
-                elif key=='mass':
-                    val[mask] = z_cands[passZCand][str(i)].flatten()[mask]['p4'].mass
-                else:
-                    val[mask] = z_cands[passZCand][str(i)].flatten()[mask][key]
-            return JaggedArray.fromoffsets(zl.offsets,val)
-
-        
-        z1pt = get_lepton_values(z1,'pt')
-        z2pt = get_lepton_values(z2,'pt')
-        passPt = ((z1pt>30) & (z2pt>20)).counts>0
-        output['cutflow']['pt threshold'] += passPt.sum()
-        selection.add('ptThreshold',passPt)
-
-
-        chanSels = {}
-        z1pdg = get_lepton_values(z1,'pdgId')
-        z2pdg = get_lepton_values(z2,'pdgId')
-        for chan in ['ee','mm']:
-            if chan=='ee':
-                pdgIds = (11,11)
-            if chan=='mm':
-                pdgIds = (13,13)
-            chanSels[chan] = ((abs(z1pdg)==pdgIds[0])
-                            & (abs(z2pdg)==pdgIds[1]))
+        # anti iso not working?
+        passMMIso = (mm_cands['1'].passIso>0).counts>0
+        output['cutflow']['iso'] += passMMIso.sum()
+        selection.add('iso',passMMIso)
+        selection.add('antiiso',~passMMIso)
 
         weights = processor.Weights(df.size)
         if self._isData: 
@@ -420,30 +327,10 @@ class DYProcessor(processor.ProcessorABC):
                         self._corrections['pileupWeightUp'](df['Pileup_nPU']),
                         self._corrections['pileupWeightDown'](df['Pileup_nPU']),
                         )
-            zls = [z1, z2]
-            # electron sf
-            for ei, zl in enumerate(zls):
-                ei = str(ei)
-                eta = get_lepton_values(zl,'etaSC')
-                pt = get_lepton_values(zl,'pt')
-                electronRecoSF = self._corrections['electron_reco'](eta,pt)
-                electronIdSF = self._corrections['electron_id_MVA90'](eta,pt)
-                electronSF = np.ones_like(electronRecoSF)
-                if ei in ['0','1']:
-                    chans = ['ee']
-                else:
-                    chans = []
-                for chan in chans:
-                    chanSel = (chanSels[chan].ones_like().sum()>0) # turns empty arrays into 0's, nonempty int 1's
-                    electronSF[chanSel] *= electronRecoSF[chanSel].prod()
-                    electronSF[chanSel] *= electronIdSF[chanSel].prod()
-                weights.add('electronSF'+ei,electronSF)
-
-            # muon SF
-            for mi, zl in enumerate(zls):
+            for mi in range(2):
                 mi = str(mi)
-                eta = get_lepton_values(zl,'eta')
-                pt = get_lepton_values(zl,'pt')
+                eta = mm_cands[passMMCand][mi]['p4'].eta
+                pt = mm_cands[passMMCand][mi]['p4'].pt
                 if self._year == '2016':
                     idSF = self._corrections['muon_id_MediumID'](eta,pt)
                     isoSF = self._corrections['muon_iso_TightRelIso_MediumID'](eta,pt)
@@ -451,43 +338,34 @@ class DYProcessor(processor.ProcessorABC):
                     idSF = self._corrections['muon_id_MediumPromptID'](pt,abs(eta))
                     isoSF = self._corrections['muon_iso_TightRelIso_MediumID'](pt,abs(eta))
                     
-                muonSF = np.ones_like(idSF)
-                if mi in ['0','1']:
-                    chans = ['mm']
-                else:
-                    chans = []
-                for chan in chans:
-                    chanSel = (chanSels[chan].ones_like().sum()>0) # turns empty arrays into 0's, nonempty int 1's
-                    muonSF[chanSel] *= idSF[chanSel].prod()
-                    muonSF[chanSel] *= isoSF[chanSel].prod()
+                muonSF = np.ones_like(df.size)
+                chan = 'mm'
+                muonSF[passMMCand] *= idSF.prod()
+                muonSF[passMMCand] *= isoSF.prod()
                 weights.add('muonSF'+mi,muonSF)
 
         logging.debug('filling')
         for sel in self._selections:
-            if sel=='massWindow':
-                cut = selection.all('lumiMask','trigger','goodVertex','twoLeptons','zCand','massWindow','ptThreshold')
-            for chan in ['ee','mm']:
-                chanSel = chanSels[chan]
-                weight = chanSel.astype(float) * weights.weight()
+            cutSels = ['lumiMask','trigger','goodVertex','twoLeptons','mmCand']
+            if sel=='iso':
+                cut = selection.all(*cutSels+['iso'])
+            if sel=='antiiso':
+                cut = selection.all(*cutSels+['antiiso'])
+            chan = 'mm'
+            weight = weights.weight()
 
-                output[sel+'_zmass'].fill(
-                    dataset=dataset,
-                    channel=chan,
-                    mass=z_cands[cut].p4.mass.flatten(),
-                    weight=weight[cut].flatten(),
-                )
-                output[sel+'_met'].fill(
-                    dataset=dataset,
-                    channel=chan,
-                    met=df['MET_pt'][cut],
-                    weight=weight[cut].flatten(),
-                )
-                output[sel+'_pileup'].fill(
-                    dataset=dataset,
-                    channel=chan,
-                    npvs=df['PV_npvs'][cut],
-                    weight=weight[cut].flatten(),
-                )
+            output['_'.join([sel,'mass'])].fill(
+                dataset=dataset,
+                channel=chan,
+                mass=mm_cands[cut].p4.mass.flatten(),
+                weight=weight[cut].flatten(),
+            )
+            output['_'.join([sel,'pileup'])].fill(
+                dataset=dataset,
+                channel=chan,
+                npvs=df['PV_npvs'][cut],
+                weight=weight[cut].flatten(),
+            )
 
         return output
 
@@ -517,9 +395,9 @@ if __name__ == '__main__':
     for year in years:
         corrections = load(f'corrections/corrections_{year}.coffea')
 
-        processor_instance = DYProcessor(
+        processor_instance = MMProcessor(
             year=year,
             corrections=corrections,
         )
 
-        save(processor_instance, f'processors/dyProcessor_{year}.coffea')
+        save(processor_instance, f'processors/mmProcessor_{year}.coffea')

@@ -262,9 +262,7 @@ class Plotter(object):
         ymax = kwargs.get('ymax',None)
         ymin = kwargs.get('ymin',None)
         blind = kwargs.get('blind',False)
-
-
-        plotratio = True
+        plotratio = kwargs.get('plotratio',True)
 
         logging.info('Plotting {0}'.format(savename))
 
@@ -297,8 +295,10 @@ class Plotter(object):
 
         legend = self._getLegend(0.65,0.7,0.94,0.92)
 
-        stack = self._getStack(hists)
-        hmaxes = [stack.GetMaximum()]
+        hmaxes = []
+        if self.sampleStack:
+            stack = self._getStack(hists)
+            hmaxes += [stack.GetMaximum()]
         if not blind: 
             data = self._getData(hists)
             hmaxes += [data.GetMaximum()]
@@ -308,36 +308,42 @@ class Plotter(object):
             hmaxes += [sampleHists[sample].GetMaximum()]
         hmax = max(hmaxes)
 
+        def style_pad(h):
+            h.GetXaxis().SetTitle(xlabel)
+            h.GetYaxis().SetTitle(ylabel)
+            h.SetMaximum(hmax*5 if logy else hmax*1.2)
+            if ymax!=None: h.SetMaximum(ymax)
+            if ymin!=None: h.SetMinimum(ymin)
+            if logx:
+                h.GetXaxis().SetMoreLogLabels()
+                h.GetXaxis().SetNoExponent()
+            if plotratio: h.GetXaxis().SetLabelOffset(999)
+
         # stack
-        stack.Draw('hist')
-        stack.GetXaxis().SetTitle(xlabel)
-        stack.GetYaxis().SetTitle(ylabel)
-        stack.SetMaximum(hmax*5 if logy else hmax*1.2)
-        if ymax!=None: stack.SetMaximum(ymax)
-        if ymin!=None: stack.SetMinimum(ymin)
-        if logx:
-            stack.GetXaxis().SetMoreLogLabels()
-            stack.GetXaxis().SetNoExponent()
-        if plotratio: stack.GetHistogram().GetXaxis().SetLabelOffset(999)
-        # stat err
-        self.j += 1
-        staterr = self._get_stat_err(stack.GetStack().Last().Clone('h_stack_{0}'.format(self.j)))
-        staterr.Draw('e2 same')
-        # syst err
-        #
-        for hist in reversed(stack.GetHists()):
-            legend.AddEntry(hist,hist.GetTitle(),'f')
+        if self.sampleStack:
+            stack.Draw('hist')
+            style_pad(stack)
+            # stat err
+            self.j += 1
+            staterr = self._get_stat_err(stack.GetStack().Last().Clone('h_stack_{0}'.format(self.j)))
+            staterr.Draw('e2 same')
+            # syst err
+            #
+            for hist in reversed(stack.GetHists()):
+                legend.AddEntry(hist,hist.GetTitle(),'f')
 
         # data
         if not blind:
             data.Draw('ex0 same') # TH1
             #data.Draw('p0 same') # TGraph
+            style_pad(data)
             legend.AddEntry(data,data.GetTitle(),'ep')
 
         # overlay histograms
         for sample in self.plotSamples:
             sampleHists[sample].Draw('hist same')
             sampleHists[sample].SetLineWidth(3)
+            style_pad(sampleHists[sample])
             legend.AddEntry(sampleHists[sample],sampleHists[sample].GetTitle(),'l')
 
         legend.Draw()
@@ -345,7 +351,6 @@ class Plotter(object):
         if plotratio:
             self._setStyle(plotpad)
 
-        if plotratio:
             self.j += 1
             stackname = 'h_stack_{0}_ratio'.format(self.j)
             denom = stack.GetStack().Last().Clone(stackname)
