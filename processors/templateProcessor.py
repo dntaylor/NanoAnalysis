@@ -11,6 +11,7 @@ from coffea import hist, processor, lookup_tools
 from coffea.lumi_tools import lumi_tools
 from coffea.util import load, save
 from coffea.analysis_objects import JaggedCandidateArray
+from coffea.nanoaod import NanoEvents, NanoCollection
 from awkward import JaggedArray, IndexedArray
 
 ZMASS = 91.1876
@@ -46,6 +47,8 @@ class TemplateProcessor(processor.ProcessorABC):
     def process(self, df):
         logging.debug('starting process')
         output = self.accumulator.identity()
+
+        events = NanoEvents.from_arrays(df)
 
         dataset = df['dataset']
         self._isData = dataset in ['SingleMuon','DoubleMuon','SingleElectron','DoubleEG','EGamma','MuonEG']

@@ -136,6 +136,8 @@ datasets = [
     'bbH_HToZZTo4L_M125_13TeV_JHUGenV7011_pythia8',
     'tqH_HToZZTo4L_M125_13TeV_JHUgenV702_pythia8',
     'tqH_HToZZTo4L_M125_13TeV_JHUgenV7011_pythia8',
+    # HAA
+    'SUSY*HToAA*AToMuMu*AToTauTau*',
 ]
 
 
@@ -151,15 +153,20 @@ def get_mc(update=False,verbose=False):
             query = 'dataset dataset=/{}/{}*/NANOAODSIM'.format(dataset,year_tags[year])
             samples = get_das(query,verbose=verbose)
             if not samples: continue
-            if dataset not in result[year]: result[year][dataset] = {}
-            sampleMap = result[year][dataset].get('files',{})
-            for sample in samples:
-                if not update and sample in sampleMap: continue
-                if 'Validation error' in sample: continue
-                query = 'file dataset={}'.format(sample)
-                sampleMap[sample] = get_das(query,verbose=verbose)
+            thesedatasets = set(s.split('/')[1] for s in samples)
+            for thisdataset in thesedatasets:
+                if thisdataset not in result[year]: result[year][thisdataset] = {}
+                sampleMap = result[year][thisdataset].get('files',{})
+                goodsamples = []
+                for sample in samples:
+                    if not update and sample in sampleMap: continue
+                    if 'Validation error' in sample: continue
+                    if sample.split('/')[1]!=thisdataset: continue
+                    query = 'file dataset={}'.format(sample)
+                    sampleMap[sample] = get_das(query,verbose=verbose)
+                    goodsamples += [sample]
     
-            result[year][dataset] = {'datasets': samples, 'files': sampleMap}
+                result[year][thisdataset] = {'datasets': goodsamples, 'files': sampleMap}
     
     dump(fname,result)
 

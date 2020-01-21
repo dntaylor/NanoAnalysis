@@ -15,7 +15,7 @@ from awkward import JaggedArray, IndexedArray
 
 ZMASS = 91.1876
 
-logger = logging.getLogger("MonoDYProcessor")
+logger = logging.getLogger("DYProcessor")
 logging.basicConfig(level=logging.INFO, stream=sys.stderr,format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 
