@@ -4,8 +4,9 @@ import json
 import argparse
 import glob
 import logging
+import time
 
-logging.basicConfig(filename='_run_processor.log', level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(filename='_run_processor.log', level=logging.DEBUG, format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 #logging.basicConfig(level=logging.INFO, format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 rootLogger = logging.getLogger()
 logging.captureWarnings(True)
@@ -75,14 +76,23 @@ if __name__ == '__main__':
             htex = parsl_condor_config(workers=args.workers)
         else:
             htex = parsl_local_config(workers=args.workers)
-        parsl.load(htex)
+        # keep retrying in case the parsl fails to load
+        retry_count = 0
+        while True:
+            try:
+                parsl.load(htex)
+                break
+            except:
+                retry_count += 1
+                logging.warning(f'Failed to load parsl. retry {retry_count}')
+                time.sleep(10)
             
 
     executor_args = {
         'savemetrics': True, 'flatten':True, 
         'desc': f'Processing {args.baseprocessor} {args.year} {dataset}',
         'retries': args.retries, 'skipbadfiles': True, 'xrootdtimeout':120,
-        'nano': True,
+        #'nano': True,
         'tailtimeout': 600,
     }
     pre_args = {
@@ -104,12 +114,13 @@ if __name__ == '__main__':
     accumulator = processor.run_uproot_job(
         fileset,
         treename='Events',
+        #treename='miniTree/MiniTree',
         processor_instance=processor_instance,
         executor=executor,
         executor_args=executor_args,
         pre_args=pre_args,
-        #chunksize=300000, # 200000 good for condor 1000 MB, request 2000 MB/core
-        chunksize=30000, # 200000 good for condor 1000 MB, request 2000 MB/core
+        chunksize=300000, # 200000 good for condor 1000 MB, request 2000 MB/core
+        #chunksize=300, # 200000 good for condor 1000 MB, request 2000 MB/core
     )
     
     save(accumulator, args.output)

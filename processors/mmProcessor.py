@@ -329,8 +329,8 @@ class MMProcessor(processor.ProcessorABC):
                         )
             for mi in range(2):
                 mi = str(mi)
-                eta = mm_cands[passMMCand][mi]['p4'].eta
-                pt = mm_cands[passMMCand][mi]['p4'].pt
+                eta = mm_cands[passMMCand][mi]['p4'].eta.flatten()
+                pt = mm_cands[passMMCand][mi]['p4'].pt.flatten()
                 if self._year == '2016':
                     idSF = self._corrections['muon_id_MediumID'](eta,pt)
                     isoSF = self._corrections['muon_iso_TightRelIso_MediumID'](eta,pt)
@@ -338,10 +338,10 @@ class MMProcessor(processor.ProcessorABC):
                     idSF = self._corrections['muon_id_MediumPromptID'](pt,abs(eta))
                     isoSF = self._corrections['muon_iso_TightRelIso_MediumID'](pt,abs(eta))
                     
-                muonSF = np.ones_like(df.size)
+                muonSF = np.ones_like(np.arange(df.size, dtype=float))
                 chan = 'mm'
-                muonSF[passMMCand] *= idSF.prod()
-                muonSF[passMMCand] *= isoSF.prod()
+                muonSF[passMMCand] *= idSF
+                muonSF[passMMCand] *= isoSF
                 weights.add('muonSF'+mi,muonSF)
 
         logging.debug('filling')

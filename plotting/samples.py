@@ -44,7 +44,7 @@ def get_sample_list(base,year,sample):
         samples += [picker('DoubleMuon')]
         samples += [picker('SingleMuon')]
         samples += [picker('MuonEG')]
-        return samples
+        return [s for s in samples if s is not None]
 
     Z = [
         picker(
@@ -70,6 +70,15 @@ def get_sample_list(base,year,sample):
         )
     ]
     if sample == 'TT': return TT
+
+    # WZ
+    WZ = [
+        picker(
+            'WZTo3LNu_TuneCUETP8M1_13TeV-powheg-pythia8',
+            'WZTo3LNu_TuneCP5_13TeV-powheg-pythia8',
+        )
+    ]
+    if sample == 'WZ': return WZ
 
     # ZZ
     qqZZ = [
@@ -144,3 +153,13 @@ def get_sample_list(base,year,sample):
         ),
     ]
     if sample == 'HZZ': return HZZ
+
+    for h in [125,250,500,750,1000]:
+        for a in range(1,61):
+            if sample == f'haaH{h}A{a}':
+                return [
+                    picker(
+                        f'SUSYGluGluToHToAA_AToMuMu_AToTauTau_M-{h}_M-{a}_TuneCUETP8M1_13TeV_madgraph_pythia8',
+                        f'SUSYGluGluToHToAA_AToMuMu_AToTauTau_M-{a}_TuneCUETP8M1_13TeV_madgraph_pythia8', # h 125 2016 only
+                    )
+                ]

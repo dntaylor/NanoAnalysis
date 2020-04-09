@@ -164,3 +164,18 @@ xsec = {
     'tqH_HToZZTo4L_M125_13TeV_JHUgenV7011_pythia8'                      : get_higgs('tH','ZZ',True),
 
 }
+
+# for SUSY, manually set to Higgs xsec (ggH) with BR=1e-3
+for h in [125,250,500,750,1000]:
+    if h == 125:
+        ggH = 48.52
+    elif h == 250:
+        ggH = 10.20
+    elif h == 500:
+        ggH = 10.20
+    elif h == 750:
+        ggH = 0.4969
+    elif h == 1000:
+        ggH = 0.1845
+    for a in range(4,51):
+        xsec[f'SUSYGluGluToHToAA_AToMuMu_AToTauTau_M-{h}_M-{a}_TuneCUETP8M1_13TeV_madgraph_pythia8'] = ggH * 1e-3
