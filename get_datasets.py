@@ -12,7 +12,9 @@ verbose = False
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 # NanoAODv6
-nano_tag = 'Nano25Oct2019'
+#nano_tag = 'Nano25Oct2019'
+# NanoAODv7
+nano_tag = '02Apr2020'
 
 # data
 year_tags = {
@@ -61,9 +63,14 @@ get_data(update,verbose)
 # for example: RunIIFall17NanoAODv6-PU2017_12Apr2018_Nano25Oct2019_ext_102X_mc2017_realistic_v7
 #              RunIIFall17NanoAODv6-PU2017_12Apr2018_Nano25Oct2019_new_pmx_102X_mc2017_realistic_v7
 year_tags = {
-    '2016': f'RunIISummer16NanoAODv6-PUMoriond17_{nano_tag}_102X_mcRun2_asymptotic_v7',
-    '2017': f'RunIIFall17NanoAODv6-PU2017_12Apr2018_{nano_tag}_102X_mc2017_realistic_v7',
-    '2018': f'RunIIAutumn18NanoAODv6-{nano_tag}_102X_upgrade2018_realistic_v20',
+    # NanoAODv6
+    #'2016': f'RunIISummer16NanoAODv6-PUMoriond17_{nano_tag}_102X_mcRun2_asymptotic_v7',
+    #'2017': f'RunIIFall17NanoAODv6-PU2017_12Apr2018_{nano_tag}_102X_mc2017_realistic_v7',
+    #'2018': f'RunIIAutumn18NanoAODv6-{nano_tag}_102X_upgrade2018_realistic_v20',
+    # NanoAODv7
+    '2016': f'RunIISummer16NanoAODv7-PUMoriond17_Nano{nano_tag}_102X_mcRun2_asymptotic_v8',
+    '2017': f'RunIIFall17NanoAODv7-PU2017_12Apr2018_Nano{nano_tag}_102X_mc2017_realistic_v8',
+    '2018': f'RunIIAutumn18NanoAODv7-Nano{nano_tag}_102X_upgrade2018_realistic_v21',
 }
 
 # datasets (note, tune changes between 2016 and 2017/2018, but not always)

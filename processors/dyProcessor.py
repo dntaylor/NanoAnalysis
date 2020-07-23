@@ -11,7 +11,9 @@ from coffea import hist, processor, lookup_tools
 from coffea.lumi_tools import lumi_tools
 from coffea.util import load, save
 from coffea.analysis_objects import JaggedCandidateArray
+# TODO: migrate
 from awkward import JaggedArray, IndexedArray
+import awkward1 as ak
 
 ZMASS = 91.1876
 
@@ -81,67 +83,67 @@ class DYProcessor(processor.ProcessorABC):
 
         electrons['passId'] = loose
         
-    def _add_trigger(self,df):
-        dataset = df['dataset']
+    def _add_trigger(self, events):
+        dataset = events.metadata['dataset']
 
         triggerPaths = {}
         # DoubleMuon
         if self._year=='2016':
             triggerPaths['DoubleMuon'] = [
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ",
-                #"HLT_Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ",
+                #"Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ",
+                #"Mu17_TrkIsoVVL_TkMu8_TrkIsoVVL_DZ",
             ]
         elif self._year=='2017':
             triggerPaths['DoubleMuon'] = [
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8",
+                #"Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
+                #"Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass8",
             ]
         elif self._year=='2018':
             triggerPaths['DoubleMuon'] = [
-                #"HLT_Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
+                #"Mu17_TrkIsoVVL_Mu8_TrkIsoVVL_DZ_Mass3p8",
             ]
 
         # DoubleEG
         if self._year=='2016':
             triggerPaths['DoubleEG'] = [
-                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
+                #"Ele23_Ele12_CaloIdL_TrackIdL_IsoVL_DZ",
             ]
         elif self._year=='2017':
             triggerPaths['DoubleEG'] = [
-                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+                #"Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
             ]
 
         # EGamma
         if self._year=='2018':
             triggerPaths['EGamma'] = [
-                #"HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
-                "HLT_Ele32_WPTight_Gsf",
+                #"Ele23_Ele12_CaloIdL_TrackIdL_IsoVL",
+                "Ele32_WPTight_Gsf",
             ]
 
 
         # SingleMuon
         if self._year=='2016':
             triggerPaths['SingleMuon'] = [
-                "HLT_IsoMu24",
-                "HLT_IsoTkMu24",
+                "IsoMu24",
+                "IsoTkMu24",
             ]
         elif self._year=='2017':
             triggerPaths['SingleMuon'] = [
-                "HLT_IsoMu27",
+                "IsoMu27",
             ]
         elif self._year=='2018':
             triggerPaths['SingleMuon'] = [
-                "HLT_IsoMu24",
+                "IsoMu24",
             ]
 
         # SingleElectron
         if self._year=='2016':
             triggerPaths['SingleElectron'] = [
-                "HLT_Ele27_WPTight_Gsf",
+                "Ele27_WPTight_Gsf",
             ]
         elif self._year=='2017':
             triggerPaths['SingleElectron'] = [
-                "HLT_Ele35_WPTight_Gsf",
+                "Ele35_WPTight_Gsf",
             ]
 
 
@@ -179,45 +181,45 @@ class DYProcessor(processor.ProcessorABC):
 
         # TODO: no guarantee the trigger is in every dataset?
         # for now, check, but should find out
-        result = np.zeros_like(df['event'],dtype=bool)
+        result = np.zeros_like(events.run, dtype=bool)
         for p in triggersToAccept:
-            if p not in df: continue
-            result = ((result) | (df[p]))
+            if p not in events.HLT.columns: continue
+            result = ((result) | (events.HLT[p]))
         for p in triggersToVeto:
-            if p not in df: continue
-            result = ((result) & (~df[p]))
+            if p not in events.HLT.columns: continue
+            result = ((result) & (~events.HLT[p]))
 
-        df['passHLT'] = result
+        events['passHLT'] = result
                 
 
 
-    def process(self, df):
+    def process(self, events):
         logging.debug('starting process')
         output = self.accumulator.identity()
 
-        dataset = df['dataset']
+        dataset = events.metadata['dataset']
         self._isData = dataset in ['SingleMuon','DoubleMuon','SingleElectron','DoubleEG','EGamma','MuonEG']
-
 
         selection = processor.PackedSelection()
 
         # TODO: instead of cutflow, use processor.PackedSelection
-        output['cutflow']['all events'] += df['event'].size
+        output['cutflow']['all events'] += events.size
 
         logging.debug('applying lumi mask')
         if self._isData:
             lumiMask = lumi_tools.LumiMask(self._corrections['golden'])
-            df['passLumiMask'] = lumiMask(df['run'],df['luminosityBlock'])
+            events['passLumiMask'] = lumiMask(events.run, events.luminosityBlock)
         else:
-            df['passLumiMask'] = np.ones_like(df['run'],dtype=bool)
-        passLumiMask = df['passLumiMask']
-        selection.add('lumiMask',passLumiMask)
+            events['passLumiMask'] = np.ones_like(events.run, dtype=bool)
+        passLumiMask = events.passLumiMask
+        selection.add('lumiMask', passLumiMask)
             
 
         logging.debug('adding trigger')
-        self._add_trigger(df)
+        self._add_trigger(events)
 
-        passHLT = df['passHLT']
+
+        passHLT = events.passHLT
         selection.add('trigger',passHLT)
         output['cutflow']['pass trigger'] += passHLT.sum()
         # if no trigger: fast return
@@ -227,37 +229,35 @@ class DYProcessor(processor.ProcessorABC):
         
         # require one good vertex
         logging.debug('checking vertices')
-        passGoodVertex = (df['PV_npvsGood']>0)
+        passGoodVertex = (events.PV.npvsGood>0)
         output['cutflow']['good vertex'] += passGoodVertex.sum()
-        selection.add('goodVertex',passGoodVertex)
+        selection.add('goodVertex', passGoodVertex)
 
 
         # run rochester
         rochester = self._rochester
-        _muon_offsets = JaggedArray.counts2offsets(df['nMuon'])
-        _charge = JaggedArray.fromoffsets(_muon_offsets, df['Muon_charge'])
-        _pt     = JaggedArray.fromoffsets(_muon_offsets, df['Muon_pt'])
-        _eta    = JaggedArray.fromoffsets(_muon_offsets, df['Muon_eta'])
-        _phi    = JaggedArray.fromoffsets(_muon_offsets, df['Muon_phi'])
+        _muon_offsets = events.Muon.pt.offsets
+        _charge = events.Muon.charge
+        _pt     = events.Muon.pt
+        _eta    = events.Muon.eta
+        _phi    = events.Muon.phi
         if self._isData:
             _k = rochester.kScaleDT(_charge,_pt,_eta,_phi)
             #_kErr = rochester.kScaleDTerror(_charge,_pt,_eta,_phi)
         else:
             # for default if gen present
-            _gen_offsets = JaggedArray.counts2offsets(df['nGenPart'])
-            _gid = JaggedArray.fromoffsets(_muon_offsets, df['Muon_genPartIdx'])
-            _gpt = JaggedArray.fromoffsets(_gen_offsets, df['GenPart_pt'])
+            _gpt = events.Muon.matched_gen.pt
             # for backup w/o gen
-            _nl = JaggedArray.fromoffsets(_muon_offsets, df['Muon_nTrackerLayers'])
+            _nl = events.Muon.nTrackerLayers
             _u  = JaggedArray.fromoffsets(_muon_offsets, np.random.rand(*_pt.flatten().shape))
-            _hasgen = (_gid>=0)
-            _kspread = rochester.kSpreadMC(_charge[ _hasgen], _pt[ _hasgen], _eta[ _hasgen], _phi[ _hasgen], _gpt[_gid[_hasgen]])
+            _hasgen = (_gpt.fillna(-1)>0)
+            _kspread = rochester.kSpreadMC(_charge[ _hasgen], _pt[ _hasgen], _eta[ _hasgen], _phi[ _hasgen], _gpt[_hasgen])
             _ksmear  = rochester.kSmearMC( _charge[~_hasgen], _pt[~_hasgen], _eta[~_hasgen], _phi[~_hasgen], _nl[~_hasgen], _u[~_hasgen])
             _k = np.ones_like(_pt.flatten())
             _k[_hasgen.flatten()] = _kspread.flatten()
             _k[~_hasgen.flatten()] = _ksmear.flatten()
             _k = JaggedArray.fromoffsets(_muon_offsets, _k)
-            #_kErrspread = rochester.kSpreadMCerror(_charge[ _hasgen], _pt[ _hasgen], _eta[ _hasgen], _phi[ _hasgen], _gpt[_gid[_hasgen]])
+            #_kErrspread = rochester.kSpreadMCerror(_charge[ _hasgen], _pt[ _hasgen], _eta[ _hasgen], _phi[ _hasgen], _gpt[_hasgen])
             #_kErrsmear  = rochester.kSmearMCerror( _charge[~_hasgen], _pt[~_hasgen], _eta[~_hasgen], _phi[~_hasgen], _nl[~_hasgen], _u[~_hasgen])
             #_kErr = np.ones_like(_pt.flatten())
             #_kErr[_hasgen.flatten()] = _kErrspread.flatten()
@@ -267,54 +267,26 @@ class DYProcessor(processor.ProcessorABC):
         mask = _pt.flatten() < 200
         rochester_pt = _pt.flatten()
         rochester_pt[mask] = (_k * _pt).flatten()[mask]
-
-        logging.debug('building muons')
-        muons = JaggedCandidateArray.candidatesfromcounts(
-            df['nMuon'],
-            pt=rochester_pt,
-            eta=df['Muon_eta'],
-            phi=df['Muon_phi'],
-            mass=df['Muon_mass'],
-            charge=df['Muon_charge'],
-            dxy=df['Muon_dxy'],
-            dz=df['Muon_dz'],
-            mediumId=df['Muon_mediumId'],
-            pfRelIso04_all=df['Muon_pfRelIso04_all'],
-            pdgId=df['Muon_pdgId'],
-        )
-
-        logging.debug('building electrons')
-        electrons = JaggedCandidateArray.candidatesfromcounts(
-            df['nElectron'],
-            pt=df['Electron_pt'],
-            eta=df['Electron_eta'],
-            phi=df['Electron_phi'],
-            mass=df['Electron_mass'],
-            charge=df['Electron_charge'],
-            dxy=df['Electron_dxy'],
-            dz=df['Electron_dz'],
-            deltaEtaSC=df['Electron_deltaEtaSC'],
-            etaSC=df['Electron_eta']+df['Electron_deltaEtaSC'],
-            mvaFall17V2Iso_WP90=df['Electron_mvaFall17V2Iso_WP90'],
-            pdgId=df['Electron_pdgId'],
-        )
+        events.Muon['rochester_pt'] = JaggedArray.fromoffsets(_muon_offsets, rochester_pt)
 
         logging.debug('adding muon id')
-        self._add_muon_id(muons)
+        self._add_muon_id(events.Muon)
         logging.debug('adding electron id')
-        self._add_electron_id(electrons)
+        self._add_electron_id(events.Electron)
 
         logging.debug('selecting muons')
-        muonId = (muons.passId>0)
-        muons = muons[muonId]
+        muonId = (events.Muon.passId>0)
+        muons = events.Muon[muonId]
 
         logging.debug('selecting electrons')
-        electronId = (electrons.passId>0)
-        electrons = electrons[electronId]
+        electronId = (events.Electron.passId>0)
+        electrons = events.Electron[electronId]
 
         passTwoLeptons = (muons.counts >= 2) | (electrons.counts >= 2)
         output['cutflow']['two leptons'] += passTwoLeptons.sum()
-        selection.add('twoLeptons',passTwoLeptons)
+        selection.add('twoLeptons', passTwoLeptons)
+
+        # TODO im here
 
         
         # build cands
@@ -409,16 +381,16 @@ class DYProcessor(processor.ProcessorABC):
             chanSels[chan] = ((abs(z1pdg)==pdgIds[0])
                             & (abs(z2pdg)==pdgIds[1]))
 
-        weights = processor.Weights(df.size)
+        weights = processor.Weights(events.run.size)
         if self._isData: 
             output['sumw'][dataset] = 0 # always set to 0 for data
         else:
-            output['sumw'][dataset] += df['genWeight'].sum()
-            weights.add('genWeight',df['genWeight'])
+            output['sumw'][dataset] += events.genWeight.sum()
+            weights.add('genWeight', events.genWeight)
             weights.add('pileupWeight',
-                        self._corrections['pileupWeight'](df['Pileup_nPU']),
-                        self._corrections['pileupWeightUp'](df['Pileup_nPU']),
-                        self._corrections['pileupWeightDown'](df['Pileup_nPU']),
+                        self._corrections['pileupWeight'](events.Pileup.nPU),
+                        self._corrections['pileupWeightUp'](events.Pileup.nPU),
+                        self._corrections['pileupWeightDown'](events.Pileup.nPU),
                         )
             zls = [z1, z2]
             # electron sf
@@ -428,7 +400,7 @@ class DYProcessor(processor.ProcessorABC):
                 pt = get_lepton_values(zl,'pt')
                 electronRecoSF = self._corrections['electron_reco'](eta,pt)
                 electronIdSF = self._corrections['electron_id_MVA90'](eta,pt)
-                electronSF = np.ones_like(electronRecoSF)
+                electronSF = np.ones_like(electronRecoSF.prod())
                 if ei in ['0','1']:
                     chans = ['ee']
                 else:
@@ -451,7 +423,7 @@ class DYProcessor(processor.ProcessorABC):
                     idSF = self._corrections['muon_id_MediumPromptID'](pt,abs(eta))
                     isoSF = self._corrections['muon_iso_TightRelIso_MediumID'](pt,abs(eta))
                     
-                muonSF = np.ones_like(idSF)
+                muonSF = np.ones_like(idSF.prod())
                 if mi in ['0','1']:
                     chans = ['mm']
                 else:
@@ -479,13 +451,13 @@ class DYProcessor(processor.ProcessorABC):
                 output[sel+'_met'].fill(
                     dataset=dataset,
                     channel=chan,
-                    met=df['MET_pt'][cut],
+                    met=events.MET.pt[cut],
                     weight=weight[cut].flatten(),
                 )
                 output[sel+'_pileup'].fill(
                     dataset=dataset,
                     channel=chan,
-                    npvs=df['PV_npvs'][cut],
+                    npvs=events.PV.npvs[cut],
                     weight=weight[cut].flatten(),
                 )
 

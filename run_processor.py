@@ -89,10 +89,10 @@ if __name__ == '__main__':
             
 
     executor_args = {
-        'savemetrics': True, 'flatten':True, 
+        'savemetrics': True,
         'desc': f'Processing {args.baseprocessor} {args.year} {dataset}',
         'retries': args.retries, 'skipbadfiles': True, 'xrootdtimeout':120,
-        #'nano': True,
+        'nano': True,
         'tailtimeout': 600,
     }
     pre_args = {
@@ -120,7 +120,7 @@ if __name__ == '__main__':
         executor_args=executor_args,
         pre_args=pre_args,
         chunksize=300000, # 200000 good for condor 1000 MB, request 2000 MB/core
-        #chunksize=300, # 200000 good for condor 1000 MB, request 2000 MB/core
+        #chunksize=3000, # 200000 good for condor 1000 MB, request 2000 MB/core
     )
     
     save(accumulator, args.output)
