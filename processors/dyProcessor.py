@@ -260,7 +260,7 @@ class DYProcessor(processor.ProcessorABC):
         mask = _pt.flatten() < 200
         rochester_pt = _pt.flatten()
         rochester_pt[mask] = (_k * _pt).flatten()[mask]
-        events.Muon['rochester_pt'] = JaggedArray.fromoffsets(_muon_offsets, rochester_pt)
+        events.Muon['pt'] = JaggedArray.fromoffsets(_muon_offsets, rochester_pt)
 
         logging.debug('adding muon id')
         self._add_muon_id(events.Muon)
