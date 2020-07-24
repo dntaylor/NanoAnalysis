@@ -20,7 +20,7 @@ function finishJobs {
 }
 
 #for proc in processors/*.py; do
-for proc in processors/mmj*.py; do
+for proc in processors/dy*.py; do
     procpy=`basename $proc`
     baseProcessor="${procpy%.*}"
     for year in 2016 2017 2018; do
