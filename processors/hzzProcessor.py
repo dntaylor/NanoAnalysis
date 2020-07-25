@@ -94,8 +94,8 @@ class HZZProcessor(processor.ProcessorABC):
 
         # TODO: check
         pt = electrons.pt
-        eta = abs(electrons.etaSC)
-        mva = electrons.mva
+        eta = abs(electrons.eta + electrons.deltaEtaSC)
+        mva = electrons.mvaFall17V2Iso
         # these are the 2017 trainings only, because that is what is available
         tightBin00 = ((pt <= 10) & (eta < 0.8) & (mva > 0.8955937602))
         tightBin01 = ((pt <= 10) & ((eta >= 0.8) & (eta < 1.479)) & (mva > 0.91106464032))
@@ -120,7 +120,7 @@ class HZZProcessor(processor.ProcessorABC):
 
         # matching muons is all that is available now
         drOverEtCut = (photons.dROverEt2 < 0.012)
-        drMuonCut = (photons.p4.delta_r(muons.p4[photons.muonIdx]) < 0.5)
+        drMuonCut = (photons.delta_r(photons.matched_muon) < 0.5)
 
         hzzMatchMuon = (hzzPreselection & drOverEtCut & drMuonCut)
         hzzMatchElectron = (hzzPreselection & (np.zeros_like(hzzPreselection)))
@@ -412,7 +412,7 @@ class HZZProcessor(processor.ProcessorABC):
                 charge=leptons.charge.flatten(),
                 pdgId=leptons.pdgId.flatten(),
                 # needed for electron SF
-                etaSC=leptons.etaSC.flatten() if hasattr(leptons, 'etaSC') else leptons.eta.flatten(),
+                etaSC=(leptons.eta + leptons.deltaEtaSC).flatten() if hasattr(leptons, 'deltaEtaSC') else leptons.eta.flatten(),
             )
         newMuons = rebuild(muons)
         newElectrons = rebuild(electrons)
